@@ -2,15 +2,12 @@ package org.journeymanoc.obediencetrainer
 
 import org.luaj.vm2.*
 import org.luaj.vm2.lib.LibFunction
-import org.luaj.vm2.lib.ResourceFinder
 import org.luaj.vm2.lib.TwoArgFunction
 import org.luaj.vm2.lib.VarArgFunction
 import java.io.InputStream
 
-class IsolatedBaseLib : org.luaj.vm2.lib.BaseLib(), ResourceFinder {
-
+class IsolatedBaseLib(private val dataSource: DataSource) : org.luaj.vm2.lib.BaseLib() {
     private var globals: Globals? = null
-
 
     /** Perform one-time initialization on the library by adding base functions
      * to the supplied environment, and returning it as the return value.
@@ -19,17 +16,17 @@ class IsolatedBaseLib : org.luaj.vm2.lib.BaseLib(), ResourceFinder {
      */
     override fun call(modname: LuaValue?, env: LuaValue?): LuaValue? {
         globals = env!!.checkglobals()
-        globals!!.finder = this
+        globals!!.finder = dataSource
         globals!!.baselib = this
         env.set( "_G", env )
         env.set( "_VERSION", Lua._VERSION )
         env.set("assert", Assert())
         env.set("collectgarbage", CollectGarbage())
-        //env.set("dofile", dofile())
+        env.set("dofile", DoFile())
         env.set("error", Error())
         env.set("getmetatable", GetMetatable())
-        //env.set("load", load())
-        //env.set("loadfile", loadfile())
+        env.set("load", Load())
+        env.set("loadfile", LoadFile())
         env.set("pcall", PCall())
         env.set("print", Print())
         env.set("rawequal", RawEqual())
@@ -50,15 +47,6 @@ class IsolatedBaseLib : org.luaj.vm2.lib.BaseLib(), ResourceFinder {
 
         return env
     }
-
-    /** ResourceFinder implementation
-     *
-     * Tries to open the file as a resource, which can work for JSE and JME.
-     */
-    override fun findResource(filename: String): InputStream? {
-        return null
-    }
-
 
     // "assert", // ( v [,message] ) -> v, message | ERR
     private inner class Assert : VarArgFunction() {
@@ -93,21 +81,19 @@ class IsolatedBaseLib : org.luaj.vm2.lib.BaseLib(), ResourceFinder {
         }
     }
 
-    /*
     // "dofile", // ( filename ) -> result1, ...
-    private class dofile : VarArgFunction() {
+    private inner class DoFile : VarArgFunction() {
         override fun invoke(args: Varargs): Varargs  {
-            args.argcheck(args.isstring(1) || args.isnil(1), 1, "filename must be string or nil");
+            args.argcheck(args.isstring(1) || args.isnil(1), 1, "filename must be string or nil")
             val filename = if (args.isstring(1)) args.tojstring(1) else null
             val v = if (filename == null) {
-                loadStream(globals.STDIN, "=stdin", "bt", globals)
+                loadStream(globals!!.STDIN, "=stdin", "bt", globals)
             } else {
                 loadFile(args.checkjstring(1), "bt", globals)
             }
             return if (v.isnil(1)) error(v.tojstring(2)) else v.arg1().invoke()
         }
     }
-    */
 
     // "error", // ( message [,level] ) -> ERR
     private inner class Error : TwoArgFunction() {
@@ -131,9 +117,8 @@ class IsolatedBaseLib : org.luaj.vm2.lib.BaseLib(), ResourceFinder {
         }
     }
 
-    /*
     // "load", // ( ld [, source [, mode [, env]]] ) -> chunk | nil, msg
-    private class load : VarArgFunction() {
+    private inner class Load : VarArgFunction() {
         override fun invoke(args: Varargs): Varargs {
             val ld = args.arg1()
             args.argcheck(ld.isstring() || ld.isfunction(), 1, "ld must be string or function")
@@ -151,18 +136,19 @@ class IsolatedBaseLib : org.luaj.vm2.lib.BaseLib(), ResourceFinder {
     }
 
     // "loadfile", // ( [filename [, mode [, env]]] ) -> chunk | nil, msg
-    final class loadfile extends VarArgFunction {
-        public Varargs invoke(Varargs args) {
-            args.argcheck(args.isstring(1) || args.isnil(1), 1, "filename must be string or nil");
-            String filename = args.isstring(1)? args.tojstring(1): null;
-            String mode = args.optjstring(2, "bt");
-            LuaValue env = args.optvalue(3, globals);
-            return filename == null?
-            loadStream( globals.STDIN, "=stdin", mode, env ):
-            loadFile( filename, mode, env );
+    private inner class LoadFile : VarArgFunction() {
+        override fun invoke(args: Varargs): Varargs {
+            args.argcheck(args.isstring(1) || args.isnil(1), 1, "filename must be string or nil")
+            val filename = if (args.isstring(1)) args.tojstring(1) else null
+            val mode = args.optjstring(2, "bt")
+            val env = args.optvalue(3, globals)
+            return if (filename == null) {
+                loadStream(globals!!.STDIN, "=stdin", mode, env)
+            } else {
+                loadFile(filename, mode, env)
+            }
         }
     }
-    */
 
     // "pcall", // (f, arg1, ...) -> status, result1, ...
     private inner class PCall : VarArgFunction() {
@@ -372,61 +358,26 @@ class IsolatedBaseLib : org.luaj.vm2.lib.BaseLib(), ResourceFinder {
         }
     }
 
-    /*
-    /**
-     * Load from a named file, returning the chunk or nil,error of can't load
-     * @param env
-     * @param mode
-     * @return Varargs containing chunk, or NIL,error-text on error
-     */
-    public Varargs loadFile(String filename, String mode, LuaValue env) {
-        InputStream is = globals.finder.findResource(filename);
-        if ( is == null )
-        return varargsOf(NIL, valueOf("cannot open "+filename+": No such file or directory"));
-        try {
-            return loadStream(is, "@"+filename, mode, env);
-        } finally {
-            try {
-                is.close();
-            } catch ( Exception e ) {
-                e.printStackTrace();
-            }
-        }
-    }
+    private class StringInputStream(val func: LuaValue) : InputStream() {
+        var bytes: ByteArray? = null
+        var offset: Int = 0
+        var remaining: Int = 0
 
-    public Varargs loadStream(InputStream is, String chunkname, String mode, LuaValue env) {
-        try {
-            if ( is == null )
-            return varargsOf(NIL, valueOf("not found: "+chunkname));
-            return globals.load(is, chunkname, mode, env);
-        } catch (Exception e) {
-            return varargsOf(NIL, valueOf(e.getMessage()));
-        }
-    }
-
-
-    private static class StringInputStream extends InputStream {
-        final LuaValue func;
-        byte[] bytes;
-        int offset, remaining = 0;
-        StringInputStream(LuaValue func) {
-            this.func = func;
-        }
-        public int read() throws IOException {
-            if ( remaining <= 0 ) {
-                LuaValue s = func.call();
-                if ( s.isnil() )
-                    return -1;
-                LuaString ls = s.strvalue();
-                bytes = ls.m_bytes;
-                offset = ls.m_offset;
-                remaining = ls.m_length;
+        override fun read(): Int {
+            if (remaining <= 0) {
+                val s = func.call()
+                if (s.isnil()) {
+                    return -1
+                }
+                val ls = s.strvalue()
+                bytes = ls.m_bytes
+                offset = ls.m_offset
+                remaining = ls.m_length
                 if (remaining <= 0)
-                    return -1;
+                    return -1
             }
-            --remaining;
-            return bytes[offset++];
+            --remaining
+            return bytes!![offset++].toInt()
         }
     }
-    */
 }

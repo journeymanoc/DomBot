@@ -1,6 +1,8 @@
 package org.journeymanoc.obediencetrainer
 
+import android.content.res.AssetManager
 import android.os.Bundle
+import android.view.LayoutInflater
 import androidx.core.view.GravityCompat
 import androidx.appcompat.app.ActionBarDrawerToggle
 import android.view.MenuItem
@@ -9,6 +11,8 @@ import com.google.android.material.navigation.NavigationView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import android.view.Menu
+import android.view.ViewGroup
+import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import org.luaj.vm2.Globals
 import org.luaj.vm2.LoadState
@@ -26,11 +30,13 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     /**
      * A safe ("containerized") replacement for {@link JsePlatform#standardGlobals}.
      */
-    fun loadGlobals(debug: Boolean): Globals {
+    fun loadGlobals(gameDataSource: DataSource, debug: Boolean): Globals {
+        val dataSource = gameDataSource.union(DataSource.Asset(applicationContext.assets, "lua"))
         var globals = Globals()
 
-        globals.load(IsolatedBaseLib())
+        globals.load(IsolatedBaseLib(dataSource))
         globals.load(IsolatedPackageLib())
+        globals.load(InternalLib())
         globals.load(Bit32Lib())
         globals.load(CoroutineLib())
         globals.load(TableLib())
@@ -65,8 +71,8 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        val globals = loadGlobals(true)
         val game = Game.loadFromAsset(applicationContext, "games/ltdct")
+        val globals = loadGlobals(game.dataSource, true)
         val script = game.dataSource.readPathBuffered("${game.initialState}.lua")!!.readText()
 
         println(script)
@@ -77,16 +83,11 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             chunk.call()!!
         } catch (e: LuaError) {
             System.err.println(e.message)
-            throw RuntimeException("An error occurred while executing the game: $e")
+            return
         }
 
-        println(result)
-
-        val mainRecyclerView: RecyclerView = findViewById(R.id.main_recycler_view)
-
-        mainRecyclerView.setHasFixedSize(true)
-        mainRecyclerView.layoutManager = null
-        mainRecyclerView.adapter = null
+        println("persistent: " + LuaPersistence.luaToString(globals.get("_G").get("persistent"), true))
+        println("elementRenderQueue: " + LuaPersistence.luaToString(globals.get("_G").get("elementRenderQueue"), true))
 
         // Original example code follows
 
@@ -94,6 +95,12 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         setContentView(R.layout.activity_main)
         val toolbar: Toolbar = findViewById(R.id.toolbar)
         setSupportActionBar(toolbar)
+
+        val mainRecyclerView: RecyclerView = findViewById(R.id.main_recycler_view)
+
+        mainRecyclerView.setHasFixedSize(true)
+        mainRecyclerView.layoutManager = null
+        mainRecyclerView.adapter = null
 
         /*
         val fab: FloatingActionButton = findViewById(R.id.fab)
