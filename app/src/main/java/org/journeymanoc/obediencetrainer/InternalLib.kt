@@ -33,6 +33,9 @@ class InternalLib : TwoArgFunction() {
 
             if (!args.isnil(1)) {
                 val table = args.checktable(1)!!
+
+                println("processElementRenderQueue invoked with: " + LuaPersistence.luaToString(table, true))
+
                 var currentKey = LuaValue.NIL
 
                 loop@while (true) {

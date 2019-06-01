@@ -87,7 +87,6 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
 
         println("persistent: " + LuaPersistence.luaToString(globals.get("_G").get("persistent"), true))
-        println("elementRenderQueue: " + LuaPersistence.luaToString(globals.get("_G").get("elementRenderQueue"), true))
 
         // Original example code follows
 

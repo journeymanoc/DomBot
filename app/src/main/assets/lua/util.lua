@@ -25,7 +25,11 @@ end
 -- If some properties of the table are not provided, or a string is passed in instead of a table, the default values
 -- are used for those arguments.
 exports.validateArguments = function(values, ...)
-    assert(type(values) == 'table')
+    if values ~= nil then
+        assert(type(values) == 'table')
+    else
+        values = {}
+    end
 
     local result = {}
     local varargs = table.pack(...)
@@ -71,6 +75,83 @@ exports.validateArguments = function(values, ...)
     end
 
     return result
+end
+
+exports.shallowCopy = function(table)
+    result = {}
+
+    for k, v in pairs(table) do
+        result[k] = v
+    end
+
+    return result
+end
+
+exports.Stack = {}
+
+-- Create a Table with stack functions
+exports.Stack.new = function(...)
+    -- stack table
+    local t = {}
+    -- entry table
+    local _et = {}
+
+    -- push a value on to the stack
+    function t:push(...)
+        if ... then
+            local targs = {...}
+            -- add values
+            for _,v in ipairs(targs) do
+                table.insert(_et, v)
+            end
+        end
+    end
+
+    -- pop a value from the stack
+    local function popOrPeek(num, preserve)
+        -- get num values from stack
+        local num = num or 1
+
+        -- return table
+        local entries = {}
+
+        -- get values into entries
+        for i = 1, num do
+            -- get last entry
+            if #_et ~= 0 then
+                table.insert(entries, _et[#_et])
+                -- remove last value
+                if not preserve then
+                    table.remove(_et)
+                end
+            else
+                break
+            end
+        end
+        -- return unpacked entries
+        return table.unpack(entries)
+    end
+
+    function t:pop(num)
+        return popOrPeek(num, false)
+    end
+
+    function t:peek(num)
+        return popOrPeek(num, true)
+    end
+
+    -- get entries
+    function t:len()
+        return #_et
+    end
+
+    function t:list()
+        return exports.shallowCopy(_et)
+    end
+
+    t:push(...)
+
+    return t
 end
 
 

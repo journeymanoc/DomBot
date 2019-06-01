@@ -1,25 +1,33 @@
 local internal = require('internal')
 local util = require('util')
 local exports = {}
-local elementRenderQueue
+local elementRenderQueueStack
 
 -- Rendering phase control
 
-exports.render = function()
-    if type(elementRenderQueue) == 'table' then
-        error('Rendering already started, invalid call to `gui.render()`.')
-    end
+exports.isRendering = function()
+    return elementRenderQueueStack ~= nil
+end
 
-    elementRenderQueue = {}
+local function assertRendering()
+    assert(exports.isRendering(), 'Rendering not started or it has been aborted, cannot render an element.')
+end
+
+exports.render = function()
+    assert(not exports.isRendering(), 'Rendering already started, invalid call to `gui.render()`.')
+
+    elementRenderQueueStack = util.Stack.new({})
     _G.onRender()
 
-    if elementRenderQueue ~= nil then
-        internal.processElementRenderQueue(elementRenderQueue)
+    -- process render queue if rendering has not been aborted
+    if exports.isRendering() then
+        internal.processElementRenderQueue(elementRenderQueueStack:list()[1])
     end
 end
 
 exports.abortRendering = function()
-    elementRenderQueue = nil
+    assertRendering()
+    elementRenderQueueStack = nil
 end
 
 
@@ -28,27 +36,32 @@ end
 -- TODO: Consider adding a way to record elements to a user-specified buffer and then commit them to the render queue together
 function renderElement(userContent, elementType, content, ...)
     assert(type(elementType) == 'string')
-    assert(type(elementRenderQueue) == 'table', 'Rendering not started or it has been aborted, cannot render an element.')
+    assertRendering()
 
-    table.insert(elementRenderQueue, {
+    local elementRenderQueue = elementRenderQueueStack.peek(elementRenderQueueStack, 1)
+    local element = {
         type = elementType,
         content = util.mergeTables(content, util.validateArguments(userContent, ...)),
-    })
+    }
+
+    table.insert(elementRenderQueue, element)
+
+    return element
 end
 
 exports.openGroup = function(args)
-    renderElement(args,
+    local element = renderElement(args,
         'group',
-        { action = 'open' },
+        { children = {} },
         { name = 'horizontal', type = 'boolean', required = false }
     )
+    elementRenderQueueStack:push(element.content.children)
 end
 
-exports.closeGroup = function(args)
-    renderElement(args,
-        'group',
-        { action = 'close' }
-    )
+exports.closeGroup = function(_)
+    assertRendering()
+    assert(elementRenderQueueStack:len() > 1, 'Cannot close group, since no group is currently open.')
+    elementRenderQueueStack:pop()
 end
 
 exports.renderText = function(args)
