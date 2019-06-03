@@ -1,13 +1,20 @@
 package org.journeymanoc.obediencetrainer
 
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Button
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
 import org.luaj.vm2.Varargs
 import org.luaj.vm2.lib.TwoArgFunction
 import org.luaj.vm2.lib.VarArgFunction
+import java.lang.IllegalArgumentException
 
-class InternalLib : TwoArgFunction() {
-
+class InternalLib(val elementAdapter: ElementAdapter) : TwoArgFunction() {
     /** Perform one-time initialization on the library by creating a table
      * containing the library functions, adding that table to the supplied environment,
      * adding the table to package.loaded, and returning table as the return value.
@@ -17,10 +24,10 @@ class InternalLib : TwoArgFunction() {
     override fun call(modname: LuaValue, env: LuaValue): LuaValue {
         val internal = LuaTable()
         internal.set("processElementRenderQueue", ProcessElementRenderQueue())
-        // env.set("table", table) -- Do not make it accessible by default without calling `require`
         env.get("package").get("loaded").set("internal", internal)
         return NIL
     }
+
 
     private inner class ProcessElementRenderQueue : VarArgFunction() {
         private fun renderGroup(content: LuaTable) {}
@@ -34,6 +41,10 @@ class InternalLib : TwoArgFunction() {
             if (!args.isnil(1)) {
                 val table = args.checktable(1)!!
 
+                elementAdapter.elementRenderQueue = table
+                elementAdapter.notifyDataSetChanged()
+
+                /*
                 println("processElementRenderQueue invoked with: " + LuaPersistence.luaToString(table, true))
 
                 var currentKey = LuaValue.NIL
@@ -50,8 +61,6 @@ class InternalLib : TwoArgFunction() {
                     val ty = currentValue["type"].checkjstring()
                     val content = currentValue["content"].checktable()
 
-                    println("ty: $ty")
-
                     when (ty) {
                         "group" -> renderGroup(content)
                         "text" -> renderText(content)
@@ -60,6 +69,7 @@ class InternalLib : TwoArgFunction() {
                         else -> continue@loop
                     }
                 }
+                */
             }
 
             return LuaValue.varargsOf(arrayOf())

@@ -13,10 +13,13 @@ import androidx.appcompat.widget.Toolbar
 import android.view.Menu
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.recyclerview.widget.DividerItemDecoration
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import org.luaj.vm2.Globals
 import org.luaj.vm2.LoadState
 import org.luaj.vm2.LuaError
+import org.luaj.vm2.LuaTable
 import org.luaj.vm2.compiler.LuaC
 import org.luaj.vm2.lib.*
 import org.luaj.vm2.lib.jse.*
@@ -30,13 +33,13 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     /**
      * A safe ("containerized") replacement for {@link JsePlatform#standardGlobals}.
      */
-    fun loadGlobals(gameDataSource: DataSource, debug: Boolean): Globals {
+    fun loadGlobals(gameDataSource: DataSource, debug: Boolean, elementAdapter: ElementAdapter): Globals {
         val dataSource = gameDataSource.union(DataSource.Asset(applicationContext.assets, "lua"))
         var globals = Globals()
 
         globals.load(IsolatedBaseLib(dataSource))
         globals.load(IsolatedPackageLib())
-        globals.load(InternalLib())
+        globals.load(InternalLib(elementAdapter))
         globals.load(Bit32Lib())
         globals.load(CoroutineLib())
         globals.load(TableLib())
@@ -70,9 +73,9 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    fun loadGame(elementAdapter: ElementAdapter) {
         val game = Game.loadFromAsset(applicationContext, "games/ltdct")
-        val globals = loadGlobals(game.dataSource, true)
+        val globals = loadGlobals(game.dataSource, true, elementAdapter)
         val script = game.dataSource.readPathBuffered("${game.initialState}.lua")!!.readText()
 
         println(script)
@@ -87,9 +90,9 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
 
         println("persistent: " + LuaPersistence.luaToString(globals.get("_G").get("persistent"), true))
+    }
 
-        // Original example code follows
-
+    override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         val toolbar: Toolbar = findViewById(R.id.toolbar)
@@ -98,8 +101,10 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         val mainRecyclerView: RecyclerView = findViewById(R.id.main_recycler_view)
 
         mainRecyclerView.setHasFixedSize(true)
-        mainRecyclerView.layoutManager = null
-        mainRecyclerView.adapter = null
+        mainRecyclerView.layoutManager = LinearLayoutManager(mainRecyclerView.context)
+        mainRecyclerView.adapter = ElementAdapter(LuaTable())
+
+        loadGame(mainRecyclerView.adapter as ElementAdapter)
 
         /*
         val fab: FloatingActionButton = findViewById(R.id.fab)
