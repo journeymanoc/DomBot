@@ -2,6 +2,7 @@ package org.journeymanoc.obediencetrainer
 
 import android.content.res.AssetManager
 import android.os.Bundle
+import android.provider.ContactsContract
 import android.view.LayoutInflater
 import androidx.core.view.GravityCompat
 import androidx.appcompat.app.ActionBarDrawerToggle
@@ -29,82 +30,25 @@ import java.io.InputStreamReader
 import java.lang.RuntimeException
 
 class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
-
-    /**
-     * A safe ("containerized") replacement for {@link JsePlatform#standardGlobals}.
-     */
-    fun loadGlobals(gameDataSource: DataSource, debug: Boolean, elementAdapter: ElementAdapter): Globals {
-        val dataSource = gameDataSource.union(DataSource.Asset(applicationContext.assets, "lua"))
-        var globals = Globals()
-
-        globals.load(IsolatedBaseLib(dataSource))
-        globals.load(IsolatedPackageLib())
-        globals.load(InternalLib(elementAdapter))
-        globals.load(Bit32Lib())
-        globals.load(CoroutineLib())
-        globals.load(TableLib())
-        globals.load(StringLib())
-        globals.load(JseMathLib())
-
-        if (debug) {
-            globals.load(DebugLib())
-        }
-
-        LoadState.install(globals)
-        LuaC.install(globals)
-
-        // TODO load from storage
-
-        return globals
-    }
-
-    fun loadAssetAsString(path: String): String {
-        var reader: BufferedReader? = null
-        try {
-            reader = BufferedReader(
-                    InputStreamReader(applicationContext.assets.open(path), "UTF-8")
-            )
-
-            return reader.readText()
-        } catch (e: IOException) {
-            throw RuntimeException(e)
-        } finally {
-            reader?.close()
-        }
-    }
-
-    fun loadGame(elementAdapter: ElementAdapter) {
-        val game = Game.loadFromAsset(applicationContext, "games/ltdct")
-        val globals = loadGlobals(game.dataSource, true, elementAdapter)
-        val script = game.dataSource.readPathBuffered("${game.initialState}.lua")!!.readText()
-
-        println(script)
-
-        val chunk = globals.load(script)!!
-
-        val result = try {
-            chunk.call()!!
-        } catch (e: LuaError) {
-            System.err.println(e.message)
-            return
-        }
-
-        println("persistent: " + LuaPersistence.luaToString(globals.get("_G").get("persistent"), true))
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         val toolbar: Toolbar = findViewById(R.id.toolbar)
         setSupportActionBar(toolbar)
 
+        val game = Game.loadFromAsset(applicationContext, "games/ltdct")
+        val elementAdapter = ElementAdapter(game, LuaTable())
         val mainRecyclerView: RecyclerView = findViewById(R.id.main_recycler_view)
 
         mainRecyclerView.setHasFixedSize(true)
         mainRecyclerView.layoutManager = LinearLayoutManager(mainRecyclerView.context)
-        mainRecyclerView.adapter = ElementAdapter(LuaTable())
+        mainRecyclerView.adapter = elementAdapter
 
-        loadGame(mainRecyclerView.adapter as ElementAdapter)
+        game.bindElementAdapter(elementAdapter)
+        game.run()
+
+        println("persistent: " + LuaPersistence.luaToString(game.globals.get("_G").get("persistent"), true))
+
 
         /*
         val fab: FloatingActionButton = findViewById(R.id.fab)

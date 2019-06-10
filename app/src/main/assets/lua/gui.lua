@@ -23,6 +23,8 @@ exports.render = function()
     if exports.isRendering() then
         internal.processElementRenderQueue(elementRenderQueueStack:list()[1])
     end
+
+    elementRenderQueueStack = nil
 end
 
 exports.abortRendering = function()
