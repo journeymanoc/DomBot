@@ -1,4 +1,4 @@
-package org.journeymanoc.obediencetrainer
+package org.journeymanoc.obediencetrainer.lua
 
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue

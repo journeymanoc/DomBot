@@ -1,20 +1,15 @@
-package org.journeymanoc.obediencetrainer
+package org.journeymanoc.obediencetrainer.lua.libs
 
-import android.view.View
-import android.view.ViewGroup
-import android.widget.Button
-import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.TextView
-import androidx.recyclerview.widget.RecyclerView
+import org.journeymanoc.obediencetrainer.ElementAdapter
+import org.journeymanoc.obediencetrainer.GameInstance
+import org.journeymanoc.obediencetrainer.lua.LuaPersistence
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
 import org.luaj.vm2.Varargs
 import org.luaj.vm2.lib.TwoArgFunction
 import org.luaj.vm2.lib.VarArgFunction
-import java.lang.IllegalArgumentException
 
-class InternalLib : TwoArgFunction() {
+class InternalLib(val gameInstance: GameInstance) : TwoArgFunction() {
     var elementAdapter: ElementAdapter? = null; get set
 
     /** Perform one-time initialization on the library by creating a table
@@ -26,6 +21,7 @@ class InternalLib : TwoArgFunction() {
     override fun call(modname: LuaValue, env: LuaValue): LuaValue {
         val internal = LuaTable()
         internal.set("processElementRenderQueue", ProcessElementRenderQueue())
+        internal.set("commitPersistentData", CommitPersistentData())
         env.get("package").get("loaded").set("internal", internal)
         return NIL
     }
@@ -42,6 +38,14 @@ class InternalLib : TwoArgFunction() {
                 elementAdapter!!.elementRenderQueue = table
                 elementAdapter!!.notifyDataSetChanged()
             }
+
+            return LuaValue.varargsOf(arrayOf())
+        }
+    }
+
+    private inner class CommitPersistentData : VarArgFunction() {
+        override fun invoke(args: Varargs): Varargs {
+            gameInstance.commitPersistentData()
 
             return LuaValue.varargsOf(arrayOf())
         }

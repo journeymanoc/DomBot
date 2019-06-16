@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.res.AssetManager
 import org.luaj.vm2.lib.ResourceFinder
 import java.io.*
+import java.lang.StringBuilder
 import java.nio.file.FileSystems
 import java.nio.file.Paths
 import java.util.*
@@ -16,6 +17,13 @@ interface DataSource : ResourceFinder {
     companion object {
         const val ESCAPE_CHAR = '\\'
         const val PATH_SEPARATOR = '/'
+
+        fun isEscapable(char: Char): Boolean {
+            return when (char) {
+                ESCAPE_CHAR, PATH_SEPARATOR -> true
+                else -> false
+            }
+        }
 
         fun isEscaped(path: String, charIndex: Int): Boolean {
             return charIndex > 0 && path[charIndex - 1] == ESCAPE_CHAR && !isEscaped(path, charIndex - 1)
@@ -80,6 +88,22 @@ interface DataSource : ResourceFinder {
             } else {
                 segments.joinToString(PATH_SEPARATOR.toString())
             }
+        }
+
+        @Suppress("NAME_SHADOWING")
+        fun escapePathSegment(segment: String): String? {
+            val segment = segment.replace('.', '_')
+            val builder = StringBuilder(segment.length)
+
+            for (char in segment.toCharArray()) {
+                if (isEscapable(char)) {
+                    builder.append(ESCAPE_CHAR)
+                }
+
+                builder.append(char)
+            }
+
+            return builder.toString()
         }
     }
 

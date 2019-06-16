@@ -1,9 +1,6 @@
 package org.journeymanoc.obediencetrainer
 
-import android.content.res.AssetManager
 import android.os.Bundle
-import android.provider.ContactsContract
-import android.view.LayoutInflater
 import androidx.core.view.GravityCompat
 import androidx.appcompat.app.ActionBarDrawerToggle
 import android.view.MenuItem
@@ -12,22 +9,10 @@ import com.google.android.material.navigation.NavigationView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import android.view.Menu
-import android.view.ViewGroup
-import android.widget.TextView
-import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import org.luaj.vm2.Globals
-import org.luaj.vm2.LoadState
-import org.luaj.vm2.LuaError
+import org.journeymanoc.obediencetrainer.lua.LuaPersistence
 import org.luaj.vm2.LuaTable
-import org.luaj.vm2.compiler.LuaC
-import org.luaj.vm2.lib.*
-import org.luaj.vm2.lib.jse.*
-import java.io.BufferedReader
-import java.io.IOException
-import java.io.InputStreamReader
-import java.lang.RuntimeException
 
 class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,6 +22,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         setSupportActionBar(toolbar)
 
         val game = Game.loadFromAsset(applicationContext, "games/ltdct")
+        val gameInstance = GameInstance(game, "ltdct-0", applicationContext)
         val elementAdapter = ElementAdapter(game, LuaTable())
         val mainRecyclerView: RecyclerView = findViewById(R.id.main_recycler_view)
 
@@ -44,11 +30,8 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         mainRecyclerView.layoutManager = LinearLayoutManager(mainRecyclerView.context)
         mainRecyclerView.adapter = elementAdapter
 
-        game.bindElementAdapter(elementAdapter)
-        game.run()
-
-        println("persistent: " + LuaPersistence.luaToString(game.globals.get("_G").get("persistent"), true))
-
+        gameInstance.bindElementAdapter(elementAdapter)
+        gameInstance.run()
 
         /*
         val fab: FloatingActionButton = findViewById(R.id.fab)

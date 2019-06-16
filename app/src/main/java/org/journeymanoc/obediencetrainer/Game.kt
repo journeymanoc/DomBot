@@ -16,103 +16,45 @@ import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStreamReader
 
-class Game private constructor(builder: Builder, context: Context) {
+class Game private constructor(builder: Builder) {
     val dataSource: DataSource get
+    val id: String get
     val name: String get
     val version: String get
     val author: String get
     val description: String get
     val changelog: List<String> get
-    /*
-    val globalVariables: List<String> get
-    val initialState: String get
-    val states: List<String> get
-    */
     val pathToMainScript: String get
-    val globals: Globals get
-    private val internalLib: InternalLib
 
     init {
         this.dataSource = builder.dataSource
+        this.id = builder.id!!
         this.name = builder.name!!
         this.version = builder.version!!
         this.author = builder.author!!
         this.description = builder.description!!
         this.changelog = builder.changelog
-        /*
-        this.globalVariables = builder.globalVariables
-        this.initialState = builder.initialState!!
-        this.states = builder.states
-        */
         this.pathToMainScript = builder.pathToMainScript!!
-        this.internalLib = InternalLib()
-        this.globals = loadGlobals(context, false)
     }
 
-    /**
-     * A safe ("containerized") replacement for {@link JsePlatform#standardGlobals}.
-     */
-    private fun loadGlobals(context: Context, debug: Boolean): Globals {
-        val dataSource = this.dataSource.union(DataSource.Asset(context.assets, "lua"))
-        var globals = Globals()
-
-        globals.load(IsolatedBaseLib(dataSource))
-        globals.load(IsolatedPackageLib())
-        globals.load(internalLib)
-        globals.load(Bit32Lib())
-        globals.load(CoroutineLib())
-        globals.load(TableLib())
-        globals.load(StringLib())
-        globals.load(JseMathLib())
-
-        if (debug) {
-            globals.load(DebugLib())
-        }
-
-        LoadState.install(globals)
-        LuaC.install(globals)
-
-        // TODO load from storage
-
-        return globals
-    }
-
-    fun bindElementAdapter(elementAdapter: ElementAdapter) {
-        internalLib.elementAdapter = elementAdapter
-    }
-
-    private fun readMainScript(): String? {
+    fun readMainScript(): String? {
         return dataSource.readPathBuffered(pathToMainScript)?.readText()
-    }
-
-    // FIXME: Error handling
-    fun run() {
-        val mainScript = readMainScript()!!
-        val chunk = globals.load(mainScript)!!
-
-        try {
-            chunk.call()!!
-        } catch (e: LuaError) {
-            System.err.println(e.message)
-        }
     }
 
     private class Builder(dataSource: DataSource) {
         val dataSource: DataSource = dataSource; get
+        var id: String? = null; get set
         var name: String? = null; get set
         var version: String? = null; get set
         var author: String? = null; get set
         var description: String? = null; get set
         val changelog: MutableList<String> = ArrayList(); get
-        /*
-        val globalVariables: MutableList<String> = ArrayList(); get
-        var initialState: String? = null; get set
-        val states: MutableList<String> = ArrayList(); get
-        */
         var pathToMainScript: String? = null; get set
     }
 
     companion object {
+        const val DIRECTORY_GAMES = "games"
+
         private fun parseDeeper(parser: XmlPullParser, acc: () -> Unit) {
             val minDepth = parser.depth
 
@@ -159,38 +101,6 @@ class Game private constructor(builder: Builder, context: Context) {
             return result
         }
 
-        /*
-        private fun loadStates(parser: XmlPullParser, builder: Builder) {
-            parseLevel(parser) {
-                if (parser.eventType != XmlPullParser.START_TAG) {
-                    return@parseLevel
-                }
-
-                assert(parser.name == "states")
-
-                var initial = false
-
-                for (attributeIndex in 0 until parser.attributeCount) {
-                    when (parser.getAttributeName(attributeIndex)) {
-                        "initial" -> {
-                            if (parser.getAttributeValue(attributeIndex) == "true") {
-                                initial = true
-                            }
-                        }
-                    }
-                }
-
-                val state = loadString(parser)
-
-                builder.states.add(state)
-
-                if (initial) {
-                    builder.initialState = state
-                }
-            }
-        }
-        */
-
         private fun loadMeta(parser: XmlPullParser, builder: Builder) {
             parseLevel(parser) {
                 if (parser.eventType != XmlPullParser.START_TAG) {
@@ -198,6 +108,7 @@ class Game private constructor(builder: Builder, context: Context) {
                 }
 
                 when (parser.name) {
+                    "id" -> builder.id = loadString(parser)
                     "name" -> builder.name = loadString(parser)
                     "version" -> builder.version = loadString(parser)
                     "author" -> builder.author = loadString(parser)
@@ -209,7 +120,7 @@ class Game private constructor(builder: Builder, context: Context) {
             }
         }
 
-        fun load(dataSource: DataSource, context: Context): Game {
+        fun load(dataSource: DataSource): Game {
             val builder = Builder(dataSource)
             var reader: BufferedReader? = null
 
@@ -239,16 +150,12 @@ class Game private constructor(builder: Builder, context: Context) {
 
                         when (parser.name) {
                             "meta" -> loadMeta(parser, builder)
-                            /*
-                            "globalVariables" -> builder.globalVariables += loadStringList(parser, "variable")
-                            "states" -> loadStates(parser, builder)
-                            */
                             else -> throw IllegalStateException("Invalid attribute `${parser.name}`, expected one of: meta, globalVariables, initialState, states")
                         }
                     }
                 }
 
-                return Game(builder, context)
+                return Game(builder)
             } catch (e: IOException) {
                 throw RuntimeException(e)
             } finally {
@@ -257,7 +164,7 @@ class Game private constructor(builder: Builder, context: Context) {
         }
 
         fun loadFromAsset(context: Context, directoryPath: String): Game {
-            return load(DataSource.Asset(context.assets, directoryPath), context)
+            return load(DataSource.Asset(context.assets, directoryPath))
         }
     }
 }

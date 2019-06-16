@@ -1,6 +1,7 @@
-package org.journeymanoc.obediencetrainer
+package org.journeymanoc.obediencetrainer.lua
 
 import com.google.gson.*
+import com.google.gson.internal.LazilyParsedNumber
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
 import java.io.Reader
@@ -8,6 +9,7 @@ import java.io.StringReader
 import java.io.StringWriter
 import java.io.Writer
 import java.lang.IllegalStateException
+import java.lang.NumberFormatException
 import java.util.*
 
 class LuaPersistence {
@@ -46,8 +48,18 @@ class LuaPersistence {
                             break
                         }
 
-                        val serializedKey = luaToJsonTree(currentKey, silentFail, visitedTables)
-                        val serializedValue = luaToJsonTree(n.arg(2), silentFail, visitedTables)
+                        val serializedKey =
+                            luaToJsonTree(
+                                currentKey,
+                                silentFail,
+                                visitedTables
+                            )
+                        val serializedValue =
+                            luaToJsonTree(
+                                n.arg(2),
+                                silentFail,
+                                visitedTables
+                            )
 
                         if (serializedKey !== null && serializedValue !== null) {
                             val entry = JsonObject()
@@ -75,11 +87,17 @@ class LuaPersistence {
                 json is JsonNull -> LuaValue.NIL
                 json is JsonPrimitive && json.isBoolean -> LuaValue.valueOf(json.asBoolean)
                 json is JsonPrimitive && json.isNumber -> {
-                    val number = json.asNumber
+                    val number = json.asString.let {
+                        try {
+                            it.toInt()
+                        } catch (_: NumberFormatException) {
+                            it.toDouble()
+                        } as Number
+                    }
 
                     when (number) {
-                        is Byte, is Short, is Int, is Long -> LuaValue.valueOf(number as Int) as LuaValue
-                        is Float, is Double -> LuaValue.valueOf(number as Double) as LuaValue
+                        is Int -> LuaValue.valueOf(number)
+                        is Double -> LuaValue.valueOf(number)
                         else -> throw IllegalStateException("Unexpected numeric type.")
                     }
                 }
@@ -88,8 +106,10 @@ class LuaPersistence {
                     val table = LuaTable()
 
                     for (entry in json.map { it.asJsonObject }) {
-                        val key = luaFromJsonTree(entry.get("key"))
-                        val value = luaFromJsonTree(entry.get("value"))
+                        val key =
+                            luaFromJsonTree(entry.get("key"))
+                        val value =
+                            luaFromJsonTree(entry.get("value"))
 
                         table[key] = value
                     }
@@ -102,7 +122,8 @@ class LuaPersistence {
 
         fun luaToJson(lua: LuaValue, silentFail: Boolean): JsonObject {
             val result = JsonObject()
-            val tree = luaToJsonTree(lua, silentFail, Stack())
+            val tree =
+                luaToJsonTree(lua, silentFail, Stack())
 
             result.addProperty("version", 1)
 
@@ -113,7 +134,7 @@ class LuaPersistence {
             return result
         }
 
-        fun luaFromJson(json: JsonElement): LuaValue? {
+        fun luaFromJson(json: JsonElement): LuaValue {
             assert(json.isJsonArray)
 
             val obj = json.asJsonObject
@@ -124,10 +145,14 @@ class LuaPersistence {
         }
 
         fun writeLuaAsJson(lua: LuaValue, writer: Writer, silentFail: Boolean) {
-            GSON.toJson(luaToJson(lua, silentFail), writer)
+            GSON.toJson(
+                luaToJson(
+                    lua,
+                    silentFail
+                ), writer)
         }
 
-        fun readJsonAsLua(reader: Reader): LuaValue? {
+        fun readJsonAsLua(reader: Reader): LuaValue {
             val json = JsonParser().parse(reader)
 
             return luaFromJson(json)
@@ -141,7 +166,7 @@ class LuaPersistence {
             return writer.toString()
         }
 
-        fun luaFromString(string: String): LuaValue? {
+        fun luaFromString(string: String): LuaValue {
             return readJsonAsLua(StringReader(string))
         }
     }
