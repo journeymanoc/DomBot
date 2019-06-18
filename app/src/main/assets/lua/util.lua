@@ -77,14 +77,19 @@ exports.validateArguments = function(values, ...)
     return result
 end
 
-exports.shallowCopy = function(table)
-    result = {}
+exports.map = function(table, fn)
+    local result = {}
 
     for k, v in pairs(table) do
-        result[k] = v
+        local newK, newV = fn(k, v)
+        result[newK] = newV
     end
 
     return result
+end
+
+exports.shallowCopy = function(table)
+    return exports.map(table, function(k, v) return k, v end)
 end
 
 exports.Stack = {}
