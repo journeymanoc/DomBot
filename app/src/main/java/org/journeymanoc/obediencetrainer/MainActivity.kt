@@ -15,6 +15,8 @@ import org.journeymanoc.obediencetrainer.lua.LuaPersistence
 import org.luaj.vm2.LuaTable
 
 class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
+    var gameInstance: GameInstance? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -22,7 +24,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         setSupportActionBar(toolbar)
 
         val game = Game.loadFromAsset(applicationContext, "games/ltdct")
-        val gameInstance = GameInstance(game, "ltdct-0", applicationContext)
+        gameInstance = GameInstance(game, "ltdct-0", applicationContext)
         val elementAdapter = ElementAdapter(game, LuaTable())
         val mainRecyclerView: RecyclerView = findViewById(R.id.main_recycler_view)
 
@@ -30,8 +32,8 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         mainRecyclerView.layoutManager = LinearLayoutManager(mainRecyclerView.context)
         mainRecyclerView.adapter = elementAdapter
 
-        gameInstance.bindElementAdapter(elementAdapter)
-        gameInstance.run()
+        gameInstance!!.bindElementAdapter(elementAdapter)
+        gameInstance!!.onCreate()
 
         /*
         val fab: FloatingActionButton = findViewById(R.id.fab)
@@ -49,6 +51,21 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         toggle.syncState()
 
         navView.setNavigationItemSelectedListener(this)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        gameInstance!!.onResume()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        gameInstance!!.onPause()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        gameInstance!!.onDestroy()
     }
 
     override fun onBackPressed() {

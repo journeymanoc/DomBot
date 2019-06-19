@@ -4,17 +4,14 @@ import com.google.gson.*
 import com.google.gson.internal.LazilyParsedNumber
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
-import java.io.Reader
-import java.io.StringReader
-import java.io.StringWriter
-import java.io.Writer
+import java.io.*
 import java.lang.IllegalStateException
 import java.lang.NumberFormatException
 import java.util.*
 
 class LuaPersistence {
     companion object {
-        private val GSON: Gson = GsonBuilder()
+        val GSON: Gson = GsonBuilder()
             .setPrettyPrinting()
             .serializeNulls()
             .create()
@@ -135,7 +132,7 @@ class LuaPersistence {
         }
 
         fun luaFromJson(json: JsonElement): LuaValue {
-            assert(json.isJsonArray)
+            assert(json.isJsonObject)
 
             val obj = json.asJsonObject
 
@@ -168,6 +165,21 @@ class LuaPersistence {
 
         fun luaFromString(string: String): LuaValue {
             return readJsonAsLua(StringReader(string))
+        }
+
+        fun cloneLua(data: LuaValue, silentFail: Boolean): LuaValue {
+            val input = PipedInputStream()
+            val output = PipedOutputStream(input)
+            val reader = InputStreamReader(input)
+            val writer = OutputStreamWriter(output)
+
+            writer.use {
+                LuaPersistence.writeLuaAsJson(data, writer, silentFail)
+            }
+
+            return reader.use {
+                LuaPersistence.readJsonAsLua(reader)
+            }
         }
     }
 }
