@@ -159,5 +159,26 @@ exports.Stack.new = function(...)
     return t
 end
 
+exports.keys = function(table)
+    local function closure(_, key)
+        local new_key, _ = next(table, key)
+        return new_key
+    end
+
+    return closure, table, nil
+end
+
+exports.values = function(table)
+    local key
+
+    local function closure(_, _)
+        local new_key, new_value = next(table, key)
+        key = new_key
+        return new_value
+    end
+
+    return closure, table, nil
+end
+
 
 return exports

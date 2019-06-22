@@ -14,6 +14,13 @@ import androidx.recyclerview.widget.RecyclerView
 import org.journeymanoc.obediencetrainer.lua.LuaPersistence
 import org.luaj.vm2.LuaTable
 
+/**
+ * TODO:
+ * - UI Layout properties (alignment, horizontal/vertical)
+ * - Buttons are ugly unless used for dialogs, add menu items
+ * - Custom styling (fonts, colors)
+ * - Game instance manipulation
+ */
 class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
     var gameInstance: GameInstance? = null
 

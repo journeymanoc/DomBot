@@ -27,7 +27,7 @@ local exports = {}
  @return The current instant (date, time)
 
  @see `compareInstants`
- @see `addDurationToInstant`
+ @see `shiftInstantBy`
  ]]
 exports.getCurrentInstant = function()
     return internal.getCurrentInstant()
@@ -39,13 +39,19 @@ end
  @return `-1`, if `a` happens before `b`; `0`, if these instants are considered the same; `1`, if `a` happens after `b`
 
  @see `getCurrentInstant`
- @see `addDurationToInstant`
+ @see `shiftInstantBy`
 ]]
 exports.compareInstants = function(a, b)
     local fieldsToOrderBy = {
         'year', 'monthOfYear', 'dayOfMonth', 'hourOfDay', 'minuteOfHour', 'secondOfMinute', 'millisecondOfSecond'
     }
-    for field in fieldsToOrderBy do
+    for field in util.values(fieldsToOrderBy) do
+        if type(a[field]) ~= 'number' then
+            error('NaN: a["'..field..'"] = '..tostring(a[field]))
+        elseif type(b[field]) ~= 'number' then
+            error('NaN: b["'..field..'"] = '..tostring(b[field]))
+        end
+
         local difference = a[field] - b[field]
 
         if difference ~= 0 then
@@ -85,8 +91,8 @@ end
  @see `compareInstants`
  @see `getCurrentInstant`
 ]]
-exports.addDurationToInstant = function(duration, instant)
-    return internal.addDurationToInstant(duration, instant)
+exports.shiftInstantBy = function(instant, duration)
+    return internal.shiftInstantBy(instant, duration)
 end
 
 --[[
@@ -103,7 +109,7 @@ end
 
  @see `scheduleNotificationAfter`
  @see `getCurrentInstant`
- @see `addDurationToInstant`
+ @see `shiftInstantBy`
  ]]
 exports.scheduleNotificationAt = function(rawArgs)
     local args = util.validateArguments(rawArgs,
@@ -128,7 +134,7 @@ end
          fields `id`, `instant` and `data`), or `nil` if no such notification was scheduled
 
  @see `scheduleNotificationAt`
- @see `addDurationToInstant`
+ @see `shiftInstantBy`
  ]]
 exports.scheduleNotificationAfter = function(rawArgs)
     local args = util.validateArguments(rawArgs,
@@ -136,7 +142,7 @@ exports.scheduleNotificationAfter = function(rawArgs)
         { name = 'duration', type = 'table' }, -- the duration, eg.: `{ seconds = 20, minutes = 1 }`
         { name = 'data', required = false } -- additional custom data to pass as an argument to `onNotify`
     )
-    local instant = exports.addDurationToInstant(args.duration, exports.getCurrentInstant())
+    local instant = exports.shiftInstantBy(exports.getCurrentInstant(), args.duration)
     return exports.scheduleNotificationAt({
         id = args.id,
         instant = instant,

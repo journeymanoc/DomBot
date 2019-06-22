@@ -64,7 +64,7 @@ class InternalLib(val gameInstance: GameInstance) : TwoArgFunction() {
         internal.set("processElementRenderQueue", ProcessElementRenderQueue())
         internal.set("commitPersistentData", CommitPersistentData())
         internal.set("getCurrentInstant", GetCurrentInstant())
-        internal.set("addDurationToInstant", AddDurationToInstant())
+        internal.set("shiftInstantBy", ShiftInstantBy())
         internal.set("scheduleNotificationAt", ScheduleNotificationAt())
         internal.set("getNotification", GetNotification())
         internal.set("cancelNotification", CancelNotification())
@@ -104,10 +104,10 @@ class InternalLib(val gameInstance: GameInstance) : TwoArgFunction() {
         }
     }
 
-    private inner class AddDurationToInstant : VarArgFunction() {
+    private inner class ShiftInstantBy : VarArgFunction() {
         override fun invoke(args: Varargs): Varargs {
-            val duration = args.arg(1).checktable()
-            val calendar = calendarFromLua(args.arg(2))
+            val calendar = calendarFromLua(args.arg(1))
+            val duration = args.arg(2).checktable()
 
             calendar.add(Calendar.MILLISECOND, duration.get("milliseconds").optint(0))
             calendar.add(Calendar.SECOND, duration.get("seconds").optint(0))

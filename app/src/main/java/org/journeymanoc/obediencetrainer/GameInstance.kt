@@ -145,6 +145,7 @@ class GameInstance(val game: Game, val instanceId: String, context: Context) {
 
                 if (notification.id == id) {
                     iter.remove()
+                    notifyHandler.removeMessages(Notification.WHAT, notification)
                     return notification
                 }
             }
@@ -241,7 +242,7 @@ class GameInstance(val game: Game, val instanceId: String, context: Context) {
         try {
             chunk.call()!!
         } catch (e: LuaError) {
-            System.err.println(e.message)
+            e.printStackTrace()
         }
     }
 
