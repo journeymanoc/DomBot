@@ -16,7 +16,6 @@ import org.luaj.vm2.LuaTable
 
 /**
  * TODO:
- * - UI Layout properties (alignment, horizontal/vertical)
  * - Buttons are ugly unless used for dialogs, add menu items
  * - Custom styling (fonts, colors)
  * - Game instance manipulation

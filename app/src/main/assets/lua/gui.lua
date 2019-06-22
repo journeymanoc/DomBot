@@ -55,6 +55,10 @@ exports.openGroup = function(args)
     local element = renderElement(args,
         'group',
         { children = {} },
+        { name = 'gravity',                      required = false }, -- may be either a string or a table of strings
+        { name = 'width',                        required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'height',                       required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'weight',                       required = false }, -- a floating point number
         { name = 'horizontal', type = 'boolean', required = false }
     )
     elementRenderQueueStack:push(element.content.children)
@@ -70,7 +74,11 @@ exports.renderText = function(args)
     renderElement(args,
         'text',
         {},
-        { name = 'text', type = 'string' }
+        { name = 'gravity',                  required = false }, -- may be either a string or a table of strings
+        { name = 'width',                    required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'height',                   required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'weight',                   required = false }, -- a floating point number
+        { name = 'text',    type = 'string'                   }
     )
 end
 
@@ -78,7 +86,10 @@ exports.renderImage = function(args)
     renderElement(args,
         'image',
         {},
-        { name = 'path', type = 'string' }
+        { name = 'width',                   required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'height',                  required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'weight',                  required = false }, -- a floating point number
+        { name = 'path',   type = 'string'                   }
     )
 end
 
@@ -86,8 +97,12 @@ exports.renderButton = function(args)
     renderElement(args,
         'button',
         {},
-        { name = 'text', type = 'string' },
-        { name = 'handler', type = 'function' }
+        { name = 'gravity',                    required = false }, -- may be either a string or a table of strings
+        { name = 'width',                      required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'height',                     required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'weight',                     required = false }, -- a floating point number
+        { name = 'text',    type = 'string'                     },
+        { name = 'handler', type = 'function'                   }
     )
 end
 
