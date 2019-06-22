@@ -24,7 +24,7 @@ import java.util.*
 class GameInstance(val game: Game, val instanceId: String, context: Context) {
     companion object {
         const val DIRECTORY_INSTANCES = "instances"
-        const val FILE_NAME_PERSISENT = "persistent.json"
+        const val FILE_NAME_PERSISTENT = "persistent.json"
         const val FILE_NAME_NOTIFICATIONS = "notifications.json"
     }
 
@@ -81,7 +81,7 @@ class GameInstance(val game: Game, val instanceId: String, context: Context) {
         internalLib.elementAdapter = elementAdapter
     }
 
-    private fun filePersistent(): File = instanceDirectory.resolve(FILE_NAME_PERSISENT)
+    private fun filePersistent(): File = instanceDirectory.resolve(FILE_NAME_PERSISTENT)
     private fun fileNotifications(): File = instanceDirectory.resolve(FILE_NAME_NOTIFICATIONS)
 
     fun loadPersistentData() {
@@ -121,13 +121,36 @@ class GameInstance(val game: Game, val instanceId: String, context: Context) {
             val onNotify = globals.get("onNotify")
 
             if (onNotify.isfunction()) {
-                onNotify.checkfunction().call(notification.data)
+                onNotify.checkfunction().call(notification.toLua())
             } else {
                 System.err.println("No `onNotify` notification handler found, define it as a function in the global scope.")
             }
 
             return false // keep handling
         }
+    }
+
+    fun getNotification(id: String): Notification? {
+        synchronized(notifications) {
+            return notifications.find { it.id == id }
+        }
+    }
+
+    fun cancelNotification(id: String): Notification? {
+        synchronized(notifications) {
+            val iter = notifications.iterator()
+
+            while (iter.hasNext()) {
+                val notification = iter.next()
+
+                if (notification.id == id) {
+                    iter.remove()
+                    return notification
+                }
+            }
+        }
+
+        return null
     }
 
     fun initializeNotifyHandler() {
@@ -182,24 +205,32 @@ class GameInstance(val game: Game, val instanceId: String, context: Context) {
         notificationsLoaded = false
     }
 
-    fun scheduleNotify(notification: Notification, skipInsert: Boolean) {
-        val uptimeMillis = notifyHandlerPreparationOffsetMillis!! + notification.instant
-        val message = notifyHandler.obtainMessage(Notification.WHAT, notification)
-        notifyHandler.sendMessageAtTime(message, uptimeMillis)
+    fun scheduleNotify(notification: Notification, skipInsert: Boolean): Notification? {
+        var cancelled: Notification? = null
 
-        if (!skipInsert) {
-            synchronized(notifications) {
+        synchronized(notifications) {
+            if (notification.id !== null) {
+                cancelled = cancelNotification(notification.id)
+            }
+
+            val uptimeMillis = notifyHandlerPreparationOffsetMillis!! + notification.instant
+            val message = notifyHandler.obtainMessage(Notification.WHAT, notification)
+            notifyHandler.sendMessageAtTime(message, uptimeMillis)
+
+            if (!skipInsert) {
                 notifications.add(notification)
             }
         }
+
+        return cancelled
     }
 
-    fun scheduleNotify(instant: Long, data: LuaValue) {
-        scheduleNotify(Notification(instant, data), false)
+    fun scheduleNotify(id: String?, instant: Long, data: LuaValue): Notification? {
+        return scheduleNotify(Notification(id, instant, data), false)
     }
 
-    fun scheduleNotify(instant: Calendar, data: LuaValue) {
-        scheduleNotify(instant.timeInMillis, data)
+    fun scheduleNotify(id: String?, instant: Calendar, data: LuaValue): Notification? {
+        return scheduleNotify(id, instant.timeInMillis, data)
     }
 
     // FIXME: Error handling

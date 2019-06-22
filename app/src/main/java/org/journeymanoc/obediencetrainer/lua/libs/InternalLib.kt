@@ -12,6 +12,45 @@ import java.lang.Exception
 import java.util.*
 
 class InternalLib(val gameInstance: GameInstance) : TwoArgFunction() {
+    companion object {
+        fun calendarToLua(calendar: Calendar): LuaValue {
+            val result = LuaValue.tableOf()
+
+            result.set("millisecondOfSecond", calendar.get(Calendar.MILLISECOND)) // ℤ ∩ <0; 1000)
+            result.set("secondOfMinute", calendar.get(Calendar.SECOND)) // ℤ ∩ <0; 60)
+            result.set("minuteOfHour", calendar.get(Calendar.MINUTE)) // ℤ ∩ <0; 60)
+            result.set("hourOfDay", calendar.get(Calendar.HOUR_OF_DAY)) // ℤ ∩ <0; 24)
+            result.set("dayOfMonth", calendar.get(Calendar.DAY_OF_MONTH)) // ℤ ∩ <1; x>
+            result.set("monthOfYear", calendar.get(Calendar.MONTH) + 1) // ℤ ∩ <1; 12>
+            result.set("year", calendar.get(Calendar.YEAR)) // ℤ
+
+            // Misc.
+            result.set("hourOfMorningOrAfternoon", calendar.get(Calendar.HOUR))
+            result.set("morningOrAfternoonOfDay", calendar.get(Calendar.AM_PM))
+            result.set("dayOfWeek", calendar.get(Calendar.DAY_OF_WEEK))
+            result.set("dayOfWeekInMonth", calendar.get(Calendar.DAY_OF_WEEK_IN_MONTH))
+            result.set("dayOfYear", calendar.get(Calendar.DAY_OF_YEAR))
+            result.set("weekOfMonth", calendar.get(Calendar.WEEK_OF_MONTH))
+            result.set("weekOfYear", calendar.get(Calendar.WEEK_OF_YEAR))
+
+            return result
+        }
+
+        fun calendarFromLua(lua: LuaValue): Calendar {
+            val result = Calendar.getInstance()
+
+            result.set(Calendar.YEAR, lua.get("year").checkint())
+            result.set(Calendar.MONTH, lua.get("monthOfYear").checkint() - 1)
+            result.set(Calendar.DAY_OF_MONTH, lua.get("dayOfMonth").checkint())
+            result.set(Calendar.HOUR_OF_DAY, lua.get("hourOfDay").checkint())
+            result.set(Calendar.MINUTE, lua.get("minuteOfHour").checkint())
+            result.set(Calendar.SECOND, lua.get("secondOfMinute").checkint())
+            result.set(Calendar.MILLISECOND, lua.get("millisecondOfSecond").checkint())
+
+            return result
+        }
+    }
+
     var elementAdapter: ElementAdapter? = null; get set
 
     /** Perform one-time initialization on the library by creating a table
@@ -26,7 +65,9 @@ class InternalLib(val gameInstance: GameInstance) : TwoArgFunction() {
         internal.set("commitPersistentData", CommitPersistentData())
         internal.set("getCurrentInstant", GetCurrentInstant())
         internal.set("addDurationToInstant", AddDurationToInstant())
-        internal.set("scheduleNotify", ScheduleNotify())
+        internal.set("scheduleNotificationAt", ScheduleNotificationAt())
+        internal.set("getNotification", GetNotification())
+        internal.set("cancelNotification", CancelNotification())
         env.get("package").get("loaded").set("internal", internal)
         return NIL
     }
@@ -52,43 +93,6 @@ class InternalLib(val gameInstance: GameInstance) : TwoArgFunction() {
 
             return LuaValue.varargsOf(arrayOf())
         }
-    }
-
-    private fun calendarToLua(calendar: Calendar): LuaValue {
-        val result = LuaValue.tableOf()
-
-        result.set("millisecondOfSecond", calendar.get(Calendar.MILLISECOND)) // ℤ ∩ <0; 1000)
-        result.set("secondOfMinute", calendar.get(Calendar.SECOND)) // ℤ ∩ <0; 60)
-        result.set("minuteOfHour", calendar.get(Calendar.MINUTE)) // ℤ ∩ <0; 60)
-        result.set("hourOfDay", calendar.get(Calendar.HOUR_OF_DAY)) // ℤ ∩ <0; 24)
-        result.set("dayOfMonth", calendar.get(Calendar.DAY_OF_MONTH)) // ℤ ∩ <1; x>
-        result.set("monthOfYear", calendar.get(Calendar.MONTH) + 1) // ℤ ∩ <1; 12>
-        result.set("year", calendar.get(Calendar.YEAR)) // ℤ
-
-        // Misc.
-        result.set("hourOfMorningOrAfternoon", calendar.get(Calendar.HOUR))
-        result.set("morningOrAfternoonOfDay", calendar.get(Calendar.AM_PM))
-        result.set("dayOfWeek", calendar.get(Calendar.DAY_OF_WEEK))
-        result.set("dayOfWeekInMonth", calendar.get(Calendar.DAY_OF_WEEK_IN_MONTH))
-        result.set("dayOfYear", calendar.get(Calendar.DAY_OF_YEAR))
-        result.set("weekOfMonth", calendar.get(Calendar.WEEK_OF_MONTH))
-        result.set("weekOfYear", calendar.get(Calendar.WEEK_OF_YEAR))
-
-        return result
-    }
-
-    private fun calendarFromLua(lua: LuaValue): Calendar {
-        val result = Calendar.getInstance()
-
-        result.set(Calendar.YEAR, lua.get("year").checkint())
-        result.set(Calendar.MONTH, lua.get("monthOfYear").checkint() - 1)
-        result.set(Calendar.DAY_OF_MONTH, lua.get("dayOfMonth").checkint())
-        result.set(Calendar.HOUR_OF_DAY, lua.get("hourOfDay").checkint())
-        result.set(Calendar.MINUTE, lua.get("minuteOfHour").checkint())
-        result.set(Calendar.SECOND, lua.get("secondOfMinute").checkint())
-        result.set(Calendar.MILLISECOND, lua.get("millisecondOfSecond").checkint())
-
-        return result
     }
 
     private inner class GetCurrentInstant : VarArgFunction() {
@@ -119,14 +123,33 @@ class InternalLib(val gameInstance: GameInstance) : TwoArgFunction() {
         }
     }
 
-    private inner class ScheduleNotify : VarArgFunction() {
+    private inner class ScheduleNotificationAt : VarArgFunction() {
         override fun invoke(args: Varargs): Varargs {
-            val instant = calendarFromLua(args.arg(1))
-            val data = args.arg(2)
+            val id = args.arg(1).optjstring(null)
+            val instant = calendarFromLua(args.arg(2))
+            val data = args.arg(3)
 
-            gameInstance.scheduleNotify(instant, LuaPersistence.cloneLua(data, true))
+            gameInstance.scheduleNotify(id, instant, LuaPersistence.cloneLua(data, true))
 
             return LuaValue.varargsOf(arrayOf())
+        }
+    }
+
+    private inner class GetNotification : VarArgFunction() {
+        override fun invoke(args: Varargs): Varargs {
+            val id = args.arg(1).checkjstring()
+            val notification = gameInstance.getNotification(id)?.toLua() ?: LuaValue.NIL
+
+            return LuaValue.varargsOf(arrayOf(notification))
+        }
+    }
+
+    private inner class CancelNotification : VarArgFunction() {
+        override fun invoke(args: Varargs): Varargs {
+            val id = args.arg(1).checkjstring()
+            val notification = gameInstance.cancelNotification(id)?.toLua() ?: LuaValue.NIL
+
+            return LuaValue.varargsOf(arrayOf(notification))
         }
     }
 }

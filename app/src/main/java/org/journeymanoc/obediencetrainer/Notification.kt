@@ -1,30 +1,50 @@
 package org.journeymanoc.obediencetrainer
 
 import com.google.gson.JsonElement
+import com.google.gson.JsonNull
 import com.google.gson.JsonObject
 import org.journeymanoc.obediencetrainer.lua.LuaPersistence
+import org.journeymanoc.obediencetrainer.lua.libs.InternalLib
 import org.luaj.vm2.LuaValue
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.io.PipedInputStream
 import java.io.PipedOutputStream
+import java.util.*
 
-class Notification(val instant: Long, val data: LuaValue) : Comparable<Notification> {
+class Notification(val id: String?, val instant: Long, data: LuaValue) : Comparable<Notification> {
+    val data: LuaValue = LuaPersistence.cloneLua(data, true)
+
     companion object {
         val WHAT: Int = 0
 
         fun fromJson(json: JsonElement): Notification {
             val root = json.asJsonObject
+            val idElement = root.get("id")
+            val id = if (idElement.isJsonPrimitive && idElement.asJsonPrimitive.isString) idElement.asString else null
 
-            return Notification(root.get("instant").asLong, LuaPersistence.luaFromJson(root.get("data")))
+            return Notification(id, root.get("instant").asLong, LuaPersistence.luaFromJson(root.get("data")))
         }
     }
 
     fun toJson(silentFail: Boolean): JsonElement {
         val result = JsonObject()
 
+        id?.also { result.addProperty("id", it) }
         result.addProperty("instant", instant)
         result.add("data", LuaPersistence.luaToJson(data, silentFail))
+
+        return result
+    }
+
+    fun toLua(): LuaValue {
+        val result = LuaValue.tableOf()
+        val calendar = Calendar.getInstance()
+        calendar.timeInMillis = instant
+
+        id?.also { result.set("id", it) }
+        result.set("instant", InternalLib.calendarToLua(calendar))
+        result.set("data", data)
 
         return result
     }
@@ -34,6 +54,6 @@ class Notification(val instant: Long, val data: LuaValue) : Comparable<Notificat
     }
 
     override fun toString(): String {
-        return "Notification(instant=$instant, data=$data)"
+        return "Notification(id=$id, instant=$instant, data=$data)"
     }
 }
