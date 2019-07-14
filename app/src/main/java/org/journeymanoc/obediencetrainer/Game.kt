@@ -166,5 +166,15 @@ class Game private constructor(builder: Builder) {
         fun loadFromAsset(context: Context, directoryPath: String): Game {
             return load(DataSource.Asset(context.assets, directoryPath))
         }
+
+        fun loadBuiltinGames(context: Context): List<Game> {
+            val gamePaths = context.assets.list(DIRECTORY_GAMES)!!
+
+            return gamePaths.map {
+                "$DIRECTORY_GAMES/$it"
+            }.map {
+                loadFromAsset(context, it)
+            }
+        }
     }
 }

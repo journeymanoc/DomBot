@@ -5,6 +5,9 @@ import android.os.Handler
 import android.os.Looper
 import android.os.Message
 import android.os.SystemClock
+import android.view.View
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.SortedList
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
@@ -20,16 +23,40 @@ import org.luaj.vm2.lib.jse.JseMathLib
 import java.io.File
 import java.nio.charset.Charset
 import java.util.*
+import kotlin.collections.ArrayList
 
 class GameInstance(val game: Game, val instanceId: String, context: Context) {
     companion object {
         const val DIRECTORY_INSTANCES = "instances"
+        const val FILE_NAME_METADATA = "metadata.json"
         const val FILE_NAME_PERSISTENT = "persistent.json"
         const val FILE_NAME_NOTIFICATIONS = "notifications.json"
+
+        fun getInstancesDirectory(context: Context): File {
+            return context.filesDir.resolve(DIRECTORY_INSTANCES)
+        }
+
+        fun loadInstances(context: Context, games: List<Game>): List<GameInstance> {
+            var instances = ArrayList<GameInstance>()
+
+            for (instanceId in getInstancesDirectory(context).list() ?: emptyArray()) {
+                val metadata = GameInstanceMetadata.load(context, instanceId)
+                val game = games.find { metadata.gameId == it.id }
+
+                game?.also {
+                    val instance = GameInstance(game, instanceId, context)
+
+                    instances.add(instance)
+                }
+            }
+
+            return instances
+        }
     }
 
     val instanceDirectory: File
     val globals: Globals
+    val view: View
     private val internalLib: InternalLib
     private val notifyHandler: Handler
     private var notifyHandlerPreparationOffsetMillis: Long? = null
@@ -39,8 +66,7 @@ class GameInstance(val game: Game, val instanceId: String, context: Context) {
     init {
         assert(instanceId.isNotBlank())
 
-        this.instanceDirectory = context.filesDir
-            .resolve(DIRECTORY_INSTANCES)
+        this.instanceDirectory = getInstancesDirectory(context)
             .resolve(DataSource.escapePathSegment(instanceId)!!)
         this.internalLib = InternalLib(this)
         this.globals = setupGlobals(context, false)
@@ -48,6 +74,22 @@ class GameInstance(val game: Game, val instanceId: String, context: Context) {
         this.notificationsLoaded = false
 
         loadPersistentData()
+
+        // Set up the element adapter
+        val elementAdapter = ElementAdapter(game, LuaTable())
+        val mainRecyclerView: RecyclerView = RecyclerView(context).apply {
+            id = R.id.main_recycler_view
+            setPadding(32, 24, 32, 24)
+            clipToPadding = false
+        }
+
+        mainRecyclerView.setHasFixedSize(true)
+        mainRecyclerView.layoutManager = LinearLayoutManager(mainRecyclerView.context)
+        mainRecyclerView.adapter = elementAdapter
+
+        view = mainRecyclerView
+
+        bindElementAdapter(elementAdapter)
     }
 
     /**
@@ -77,10 +119,11 @@ class GameInstance(val game: Game, val instanceId: String, context: Context) {
         return globals
     }
 
-    fun bindElementAdapter(elementAdapter: ElementAdapter) {
+    private fun bindElementAdapter(elementAdapter: ElementAdapter) {
         internalLib.elementAdapter = elementAdapter
     }
 
+    private fun fileMetadata(): File = instanceDirectory.resolve(FILE_NAME_METADATA)
     private fun filePersistent(): File = instanceDirectory.resolve(FILE_NAME_PERSISTENT)
     private fun fileNotifications(): File = instanceDirectory.resolve(FILE_NAME_NOTIFICATIONS)
 
@@ -88,9 +131,8 @@ class GameInstance(val game: Game, val instanceId: String, context: Context) {
         val filePersistent = filePersistent()
 
         if (filePersistent.isFile) {
-            val persistent = filePersistent.reader(Charset.forName("UTF-8")).use {
-                LuaPersistence.readJsonAsLua(it)
-            }
+            val json = readJson(filePersistent)
+            val persistent = LuaPersistence.luaFromJson(json)
 
             globals.rawset("persistent", persistent)
         }
@@ -101,9 +143,9 @@ class GameInstance(val game: Game, val instanceId: String, context: Context) {
 
         println("Persisting: " + LuaPersistence.luaToString(persistent, true))
 
-        prepareRegularFile(filePersistent()).writer(Charset.forName("UTF-8")).use {
-            LuaPersistence.writeLuaAsJson(persistent, it, true)
-        }
+        val json = LuaPersistence.luaToJson(persistent, true)
+
+        writeJson(filePersistent(), json)
     }
 
     inner class NotifyCallbackHandler : Handler.Callback {
@@ -170,9 +212,7 @@ class GameInstance(val game: Game, val instanceId: String, context: Context) {
             notifications.clear()
 
             if (fileNotifications.isFile) {
-                val json = fileNotifications.reader(Charset.forName("UTF-8")).use {
-                    JsonParser().parse(it)
-                }
+                val json = readJson(fileNotifications)
                 val array = if (json.isJsonArray) json.asJsonArray else JsonArray()
 
                 for (element in array) {
@@ -195,9 +235,7 @@ class GameInstance(val game: Game, val instanceId: String, context: Context) {
             }
         }
 
-        prepareRegularFile(fileNotifications()).writer(Charset.forName("UTF-8")).use {
-            LuaPersistence.GSON.toJson(json, it)
-        }
+        writeJson(fileNotifications(), json)
     }
 
     fun stopNotificationHandlerAndCommitNotifications() {
@@ -244,6 +282,29 @@ class GameInstance(val game: Game, val instanceId: String, context: Context) {
         } catch (e: LuaError) {
             e.printStackTrace()
         }
+    }
+
+    /**
+     * Called when the instance is created and added to the list of available instances
+     */
+    fun add() {
+        load()
+    }
+
+    fun load() {
+        if (MainActivity.activityState >= MainActivity.Companion.State.CREATED) onCreate()
+        if (MainActivity.activityState >= MainActivity.Companion.State.RESUMED) onResume()
+    }
+
+    fun delete() {
+        instanceDirectory.deleteRecursively()
+    }
+
+    /**
+     * Called when the instance is created and added to the list of available instances
+     */
+    fun unload() {
+        stopNotificationHandlerAndCommitNotifications()
     }
 
     fun onCreate() {

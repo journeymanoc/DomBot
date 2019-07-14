@@ -141,6 +141,7 @@ class LuaPersistence {
             return luaFromJsonTree(obj.get("content"))
         }
 
+        @Deprecated("Use LuaPersistence.luaFromJson/luaToJson and Util.writeJson/readJson")
         fun writeLuaAsJson(lua: LuaValue, writer: Writer, silentFail: Boolean) {
             GSON.toJson(
                 luaToJson(
@@ -149,6 +150,7 @@ class LuaPersistence {
                 ), writer)
         }
 
+        @Deprecated("Use LuaPersistence.luaFromJson/luaToJson and Util.writeJson/readJson")
         fun readJsonAsLua(reader: Reader): LuaValue {
             val json = JsonParser().parse(reader)
 
