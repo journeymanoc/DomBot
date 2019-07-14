@@ -18,4 +18,5 @@
     <string name="drawer_item_settings_title">Settings</string>
     <string name="drawer_item_add_instance_title">Add instance</string>
     <string name="action_delete_instance">Delete instance</string>
+    <string name="action_rename_instance">Rename instance</string>
 </resources>

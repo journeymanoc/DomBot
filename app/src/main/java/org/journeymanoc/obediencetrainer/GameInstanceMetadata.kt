@@ -6,26 +6,28 @@ import com.google.gson.JsonParser
 import java.io.File
 import java.nio.charset.Charset
 
-class GameInstanceMetadata(val file: File, val gameId: String, val instanceId: String) {
+class GameInstanceMetadata(val file: File, val gameId: String, val instanceId: String, var instanceName: String) {
     companion object {
         const val PROPERTY_GAME_ID = "gameId"
+        const val PROPERTY_INSTANCE_NAME = "instanceName"
 
         fun load(context: Context, instanceId: String): GameInstanceMetadata {
             val instancesDirectory = GameInstance.getInstancesDirectory(context)
             val instanceDirectory = instancesDirectory.resolve(instanceId)
             val metadataFile = instanceDirectory.resolve(GameInstance.FILE_NAME_METADATA)
             val json = readJson(metadataFile)
-            val gameId = json.asJsonObject.getAsJsonPrimitive(PROPERTY_GAME_ID).asString
+            val gameId = json.asJsonObject.getAsJsonPrimitive(PROPERTY_GAME_ID).asString!!
+            val instanceName = json.asJsonObject.getAsJsonPrimitive(PROPERTY_INSTANCE_NAME).asString ?: instanceId
 
-            return GameInstanceMetadata(metadataFile, gameId, instanceId)
+            return GameInstanceMetadata(metadataFile, gameId, instanceId, instanceName)
         }
 
-        fun create(context: Context, gameId: String): GameInstanceMetadata {
+        fun create(context: Context, game: Game): GameInstanceMetadata {
             val instancesDirectory = GameInstance.getInstancesDirectory(context)
-            val instanceId = createUniqueId(instancesDirectory, gameId)
+            val instanceId = createUniqueId(instancesDirectory, game.id)
             val instanceDirectory = instancesDirectory.resolve(instanceId)
             val metadataFile = instanceDirectory.resolve(GameInstance.FILE_NAME_METADATA)
-            val metadata = GameInstanceMetadata(metadataFile, gameId, instanceId)
+            val metadata = GameInstanceMetadata(metadataFile, game.id, instanceId, game.name + ": " + instanceId)
 
             metadata.save()
 
@@ -48,10 +50,15 @@ class GameInstanceMetadata(val file: File, val gameId: String, val instanceId: S
         }
     }
 
+    init {
+        assert(instanceId.isNotBlank())
+    }
+
     fun save() {
         val json = JsonObject()
 
         json.addProperty(PROPERTY_GAME_ID, gameId)
+        json.addProperty(PROPERTY_INSTANCE_NAME, instanceName)
         writeJson(file, json)
     }
 }

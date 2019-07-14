@@ -25,7 +25,7 @@ import java.nio.charset.Charset
 import java.util.*
 import kotlin.collections.ArrayList
 
-class GameInstance(val game: Game, val instanceId: String, context: Context) {
+class GameInstance(val game: Game, val metadata: GameInstanceMetadata, context: Context) {
     companion object {
         const val DIRECTORY_INSTANCES = "instances"
         const val FILE_NAME_METADATA = "metadata.json"
@@ -44,7 +44,7 @@ class GameInstance(val game: Game, val instanceId: String, context: Context) {
                 val game = games.find { metadata.gameId == it.id }
 
                 game?.also {
-                    val instance = GameInstance(game, instanceId, context)
+                    val instance = GameInstance(game, metadata, context)
 
                     instances.add(instance)
                 }
@@ -64,10 +64,8 @@ class GameInstance(val game: Game, val instanceId: String, context: Context) {
     private var notificationsLoaded: Boolean
 
     init {
-        assert(instanceId.isNotBlank())
-
         this.instanceDirectory = getInstancesDirectory(context)
-            .resolve(DataSource.escapePathSegment(instanceId)!!)
+            .resolve(DataSource.escapePathSegment(metadata.instanceId)!!)
         this.internalLib = InternalLib(this)
         this.globals = setupGlobals(context, false)
         this.notifyHandler = Handler(Looper.getMainLooper(), NotifyCallbackHandler())
@@ -308,25 +306,25 @@ class GameInstance(val game: Game, val instanceId: String, context: Context) {
     }
 
     fun onCreate() {
-        println("Handling `onCreate` of game instance `$instanceId`")
+        println("Handling `onCreate` of game instance `${metadata.instanceId}`")
         loadNotifications()
         run()
     }
 
     fun onResume() {
-        println("Handling `onResume` of game instance `$instanceId`")
+        println("Handling `onResume` of game instance `${metadata.instanceId}`")
         if (!notificationsLoaded) {
             loadNotifications()
         }
     }
 
     fun onPause() {
-        println("Handling `onPause` of game instance `$instanceId`")
+        println("Handling `onPause` of game instance `${metadata.instanceId}`")
         stopNotificationHandlerAndCommitNotifications()
     }
 
     fun onDestroy() {
-        println("Handling `onDestroy` of game instance `$instanceId`")
+        println("Handling `onDestroy` of game instance `${metadata.instanceId}`")
         // Commented out, because we already do that in `onPause`, which is called every time before `onDestroy`
         //stopNotificationHandlerAndCommitNotifications()
     }

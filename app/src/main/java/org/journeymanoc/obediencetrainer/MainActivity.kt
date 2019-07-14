@@ -9,6 +9,7 @@ import com.google.android.material.navigation.NavigationView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import android.view.Menu
+import android.widget.EditText
 import androidx.appcompat.app.AlertDialog
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
@@ -41,6 +42,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     private lateinit var mainLayout: ConstraintLayout
+    private lateinit var navigationView: NavigationView
     private lateinit var games: MutableList<Game>
     private var gameInstances: MutableList<GameInstance> = mutableListOf()
     private var currentInstanceIndex: Int? = null
@@ -68,6 +70,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         setUpNavigationListener()
 
         mainLayout = findViewById(R.id.main_layout)
+        navigationView = findViewById(R.id.nav_view)
     }
 
     private fun loadGames(): List<Game> {
@@ -93,13 +96,12 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     private fun updateGameInstancesMenu() {
-        val navigationView: NavigationView = findViewById(R.id.nav_view)
         val instancesItem = navigationView.menu.findItem(R.id.drawer_item_instances) as MenuItem
 
         instancesItem.subMenu.clear()
 
         for ((i, instance) in gameInstances.withIndex()) {
-            val item = instancesItem.subMenu.add(R.id.drawer_group_instances, i, i, instance.game.name + ": " + instance.instanceId)
+            val item = instancesItem.subMenu.add(R.id.drawer_group_instances, i, i, instance.metadata.instanceName)
             item.isCheckable = true
             item.isChecked = currentInstanceIndex == i
         }
@@ -107,20 +109,77 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
     private fun showGameInstanceDialog() {
         val selectedItem = Pointer(-1)
+        val cancelled = Pointer(false)
         val builder = AlertDialog.Builder(this).apply {
             // TODO use R.strings
             setTitle("Add game instance")
-            setPositiveButton("Add") { _, _ ->  }
-            setNegativeButton("Cancel") { _, _ ->  }
+            setPositiveButton("Add", null)
+            setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
             setSingleChoiceItems(games.map { "${it.name} - ${it.version}" }.toTypedArray(), -1) { _, id -> selectedItem.value = id }
+            setOnCancelListener { cancelled.value = true }
             setOnDismissListener {
-                if (selectedItem.value != -1) {
-                    val gameId = games[selectedItem.value].id
-                    val instanceTmp = GameInstanceMetadata.create(applicationContext, gameId)
+                if (!cancelled.value && selectedItem.value != -1) {
+                    val game = games[selectedItem.value]
+                    val instanceTmp = GameInstanceMetadata.create(applicationContext, game)
                     val instanceId = instanceTmp.instanceId
                     reloadGameInstances()
-                    showGameInstance { it.instanceId == instanceId }
+                    showGameInstance { it.metadata.instanceId == instanceId }
                     updateGameInstancesMenu()
+                }
+            }
+        }
+
+        val dialog = builder.create()
+        dialog.show()
+    }
+
+    private fun showRenameCurrentInstanceDialog() {
+        if (currentInstanceIndex === null) {
+            return
+        }
+
+        val currentInstance = gameInstances[currentInstanceIndex!!]
+        val field = EditText(applicationContext).apply {
+            setText(currentInstance.metadata.instanceName)
+        }
+        val cancelled = Pointer(false)
+        val builder = AlertDialog.Builder(this).apply {
+            // TODO use R.strings
+            setTitle("Rename game instance")
+            setPositiveButton("Rename", null)
+            setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
+            setView(field)
+            setOnCancelListener { cancelled.value = true }
+            setOnDismissListener {
+                if (!cancelled.value) {
+                    currentInstance.metadata.instanceName = field.text.toString()
+                    currentInstance.metadata.save()
+                    updateGameInstancesMenu()
+                }
+            }
+        }
+
+        val dialog = builder.create()
+        dialog.show()
+    }
+
+    private fun showDeleteCurrentInstanceDialog() {
+        if (currentInstanceIndex === null) {
+            return
+        }
+
+        val currentInstance = gameInstances[currentInstanceIndex!!]
+        val cancelled = Pointer(false)
+        val builder = AlertDialog.Builder(this).apply {
+            // TODO use R.strings
+            setTitle("Delete game instance")
+            setMessage("Are you sure you want to delete the instance \"${currentInstance.metadata.instanceName}\"? The instance data will be irreversibly lost.")
+            setPositiveButton("Delete", null)
+            setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
+            setOnCancelListener { cancelled.value = true }
+            setOnDismissListener {
+                if (!cancelled.value) {
+                    deleteCurrentInstance()
                 }
             }
         }
@@ -210,8 +269,12 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
         return when (item.itemId) {
+            R.id.action_rename_instance -> {
+                showRenameCurrentInstanceDialog()
+                true
+            }
             R.id.action_delete_instance -> {
-                deleteCurrentInstance()
+                showDeleteCurrentInstanceDialog()
                 true
             }
             //R.id.action_settings -> true
