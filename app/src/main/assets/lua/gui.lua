@@ -106,5 +106,62 @@ exports.renderButton = function(args)
     )
 end
 
+exports.renderTransitionButton = function(args)
+    renderElement(args,
+        'transitionButton',
+        {},
+        { name = 'gravity',                    required = false }, -- may be either a string or a table of strings
+        { name = 'width',                      required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'height',                     required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'weight',                     required = false }, -- a floating point number
+        { name = 'text',    type = 'string'                     },
+        { name = 'subtext', type = 'string',   required = false },
+        { name = 'handler', type = 'function'                   }
+    )
+end
+
+exports.renderCheckBox = function(args)
+    renderElement(args,
+        'checkBox',
+        {},
+        { name = 'gravity',                    required = false }, -- may be either a string or a table of strings
+        { name = 'width',                      required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'height',                     required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'weight',                     required = false }, -- a floating point number
+        { name = 'text',    type = 'string',   required = false },
+        { name = 'handler', type = 'function'                   }
+    )
+end
+
+exports.renderTextInput = function(args)
+    renderElement(args,
+        'textInput',
+        {},
+        { name = 'gravity',                        required = false }, -- may be either a string or a table of strings
+        { name = 'width',                          required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'height',                         required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'weight',                         required = false }, -- a floating point number
+        { name = 'text',        type = 'string',   required = false },
+        { name = 'placeholder', type = 'string',   required = false },
+        { name = 'inputType',                      required = false },
+        { name = 'handler',     type = 'function'                   }
+    )
+end
+
+exports.renderNumberPicker = function(args)
+    renderElement(args,
+        'numberPicker',
+        {},
+        { name = 'gravity',                     required = false }, -- may be either a string or a table of strings
+        { name = 'width',                       required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'height',                      required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'weight',                      required = false }, -- a floating point number
+        { name = 'value',    type = 'number',   required = false },
+        { name = 'minValue', type = 'number',   required = false },
+        { name = 'maxValue', type = 'number',   required = false },
+        { name = 'handler',  type = 'function'                   }
+    )
+end
+
 
 return exports

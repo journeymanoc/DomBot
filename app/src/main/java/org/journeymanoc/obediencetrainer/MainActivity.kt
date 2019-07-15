@@ -38,7 +38,12 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             RESUMED;
         }
 
+        lateinit var instance: MainActivity
         var activityState = State.NONEXISTENT
+    }
+
+    init {
+        instance = this
     }
 
     private lateinit var mainLayout: ConstraintLayout

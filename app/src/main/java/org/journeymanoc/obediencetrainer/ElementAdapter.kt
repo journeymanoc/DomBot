@@ -1,20 +1,19 @@
 package org.journeymanoc.obediencetrainer
 
+import android.annotation.SuppressLint
 import android.app.ActionBar
+import android.app.Activity
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Paint
 import android.graphics.Picture
 import android.os.Build
-import android.text.Html
-import android.text.Spanned
-import android.view.Gravity
-import android.view.View
-import android.view.ViewGroup
-import android.widget.Button
-import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.TextView
+import android.text.*
+import android.view.*
+import android.widget.*
+import androidx.appcompat.view.menu.MenuBuilder
+import androidx.appcompat.view.menu.MenuView
+import androidx.core.content.getSystemService
 import androidx.core.view.children
 import androidx.recyclerview.widget.RecyclerView
 import org.luaj.vm2.LuaError
@@ -46,6 +45,85 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
     }
 
     companion object {
+        fun parseInputTypeClass(raw: String): Int {
+            return when (raw.toUpperCase().replace("_", "", false)) {
+                "NONE", "NULL" -> InputType.TYPE_NULL
+                "TEXT" -> InputType.TYPE_CLASS_TEXT
+                "NUMBER" -> InputType.TYPE_CLASS_NUMBER
+                "PHONE" -> InputType.TYPE_CLASS_PHONE
+                "INSTANT", "DATETIME" -> InputType.TYPE_CLASS_DATETIME
+                else -> throw LuaError("Invalid input type class value.")
+            }
+        }
+
+        fun parseInputTypeFlag(raw: String): Int {
+            return when (raw.toUpperCase().replace("_", "", false)) {
+                "NONE" -> 0
+                "CAPITALIZECHARACTERS" -> InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+                "CAPITALIZEWORDS" -> InputType.TYPE_TEXT_FLAG_CAP_WORDS
+                "CAPITALIZESENTENCES" -> InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+                "AUTOCORRECT" -> InputType.TYPE_TEXT_FLAG_AUTO_CORRECT
+                // Unlikely to ever be used: "" -> InputType.TYPE_TEXT_FLAG_AUTO_COMPLETE
+                "MULTILINE" -> InputType.TYPE_TEXT_FLAG_MULTI_LINE
+                "IMEMULTILINE" -> InputType.TYPE_TEXT_FLAG_IME_MULTI_LINE
+                "NOSUGGESTIONS" -> InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                "SIGNED" -> InputType.TYPE_NUMBER_FLAG_SIGNED
+                "DECIMAL" -> InputType.TYPE_NUMBER_FLAG_DECIMAL
+                else -> throw LuaError("Invalid input type flag value.")
+            }
+        }
+
+        fun parseInputTypeVariation(raw: String): Int {
+            return when (raw.toUpperCase().replace("_", "", false)) {
+                "NORMAL", "NONE" -> 0
+                "URI" -> InputType.TYPE_TEXT_VARIATION_URI
+                "EMAILADDRESS" -> InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+                "EMAILSUBJECT" -> InputType.TYPE_TEXT_VARIATION_EMAIL_SUBJECT
+                "SHORTMESSAGE" -> InputType.TYPE_TEXT_VARIATION_SHORT_MESSAGE
+                "LONGMESSAGE" -> InputType.TYPE_TEXT_VARIATION_LONG_MESSAGE
+                "PERSONNAME" -> InputType.TYPE_TEXT_VARIATION_PERSON_NAME
+                "POSTALADDRESS" -> InputType.TYPE_TEXT_VARIATION_POSTAL_ADDRESS
+                "PASSWORD" -> InputType.TYPE_TEXT_VARIATION_PASSWORD or InputType.TYPE_NUMBER_VARIATION_PASSWORD
+                "VISIBLEPASSWORD" -> InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+                // Unlikely to ever be used: "" -> InputType.TYPE_TEXT_VARIATION_WEB_EDIT_TEXT
+                "FILTER" -> InputType.TYPE_TEXT_VARIATION_FILTER
+                "PHONETIC" -> InputType.TYPE_TEXT_VARIATION_PHONETIC
+                // Unlikely to ever be used: "" -> InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS
+                // Unlikely to ever be used: "" -> InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
+                "DATE" -> InputType.TYPE_DATETIME_VARIATION_DATE
+                "TIME" -> InputType.TYPE_DATETIME_VARIATION_TIME
+                else -> throw LuaError("Invalid input type variation value.")
+            }
+        }
+
+        fun parseInputType(raw: LuaValue): Int {
+            if (!raw.istable()) {
+                return InputType.TYPE_CLASS_TEXT
+            }
+
+            val root = raw.checktable()
+            val clazz = parseInputTypeClass(root.rawget("class").optjstring("TEXT"))
+            val variation = parseInputTypeVariation(root.rawget("variation").optjstring("NONE"))
+            val luaFlags = root.rawget("flags")
+            val flags = when {
+                luaFlags.isstring() -> parseInputTypeFlag(luaFlags.tojstring())
+                luaFlags.istable() -> {
+                    val table = luaFlags.checktable()
+                    var result = 0
+
+                    for (key in table.keys()) {
+                        result = result or parseInputTypeFlag(table.rawget(key).checkjstring())
+                    }
+
+                    result
+                }
+                luaFlags.isnil() -> parseInputTypeFlag("NONE")
+                else -> throw LuaError("Invalid type of the input type flags field, expected a string or a table of strings.")
+            }
+
+            return clazz or variation or flags
+        }
+
         fun parseGravity(raw: String): Int {
             return when (raw.toUpperCase().replace("_", "", false)) {
                 "NONE" -> 0
@@ -74,7 +152,7 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
                     var result = 0
 
                     for (key in table.keys()) {
-                        result = result or parseGravity(table.get(key).checkjstring())
+                        result = result or parseGravity(table.rawget(key).checkjstring())
                     }
 
                     result
@@ -122,7 +200,7 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
 
     enum class ElementType {
         GROUP {
-            override fun createView(parent: View): View {
+            override fun createView(parent: ViewGroup): View {
                 return LinearLayout(parent.context).apply {
                     layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
                 }
@@ -154,7 +232,7 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
             }
         },
         TEXT {
-            override fun createView(parent: View): View {
+            override fun createView(parent: ViewGroup): View {
                 return TextView(parent.context)
             }
 
@@ -166,7 +244,7 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
             }
         },
         IMAGE {
-            override fun createView(parent: View): View {
+            override fun createView(parent: ViewGroup): View {
                 return ImageView(parent.context)
             }
 
@@ -182,7 +260,7 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
             }
         },
         BUTTON {
-            override fun createView(parent: View): View {
+            override fun createView(parent: ViewGroup): View {
                 return Button(parent.context)
             }
 
@@ -201,22 +279,119 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
                     view.setOnClickListener(null)
                 }
             }
+        },
+        TRANSITION_BUTTON {
+            override fun createView(parent: ViewGroup): View {
+                return MainActivity.instance.layoutInflater.inflate(R.layout.transition_button, null)
+                //return parent.context.getSystemService<LayoutInflater>()!!.inflate(R.layout.transition_button, null)
+            }
+
+            override fun bindView(adapter: ElementAdapter, view: View, element: Element) {
+                val primaryText: TextView = view.findViewById(R.id.transition_button_text_primary)
+                val secondaryText: TextView = view.findViewById(R.id.transition_button_text_secondary)
+                primaryText.text = element.getContentHtml("text")
+                secondaryText.text = element.getContentHtml("subtext")
+                parseLayoutParams(view, element.getContent(), matchParentWidth = true, matchParentHeight = false)
+                val handler = element.getContent().get("handler")
+
+                if (handler is LuaFunction) {
+                    view.setOnClickListener {
+                        handler.call()
+                    }
+                } else {
+                    view.setOnClickListener(null)
+                }
+            }
+        },
+        CHECK_BOX {
+            override fun createView(parent: ViewGroup): View {
+                return CheckBox(parent.context)
+            }
+
+            override fun bindView(adapter: ElementAdapter, view: View, element: Element) {
+                view as CheckBox
+                view.text = element.getContentHtml("text")
+                parseLayoutParams(view, element.getContent(), matchParentWidth = true, matchParentHeight = false)
+                view.gravity = parseGravity(element.getContent().get("gravity"), Gravity.CENTER)
+                val handler = element.getContent().get("handler")
+
+                if (handler is LuaFunction) {
+                    view.setOnCheckedChangeListener { _, checked ->
+                        handler.call(LuaValue.valueOf(checked))
+                    }
+                } else {
+                    view.setOnClickListener(null)
+                }
+            }
+        },
+        TEXT_INPUT {
+            override fun createView(parent: ViewGroup): View {
+                return CustomEditText(parent.context)
+            }
+
+            override fun bindView(adapter: ElementAdapter, view: View, element: Element) {
+                view as CustomEditText
+                view.text.clear()
+                view.text.append(element.getContent().get("text").optjstring(""))
+                view.hint = element.getContent().get("placeholder").optjstring(null)
+                parseLayoutParams(view, element.getContent(), matchParentWidth = true, matchParentHeight = false)
+                view.gravity = parseGravity(element.getContent().get("gravity"), Gravity.CENTER)
+                view.inputType = parseInputType(element.getContent().get("inputType"))
+                val handler = element.getContent().get("handler")
+
+                if (handler is LuaFunction) {
+                    view.setTextChangedListener(object : TextWatcher {
+                        override fun afterTextChanged(s: Editable?) {
+                            handler.call(LuaValue.valueOf(s?.toString() ?: ""))
+                        }
+
+                        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+
+                    })
+                } else {
+                    view.setOnClickListener(null)
+                }
+            }
+        },
+        NUMBER_PICKER {
+            override fun createView(parent: ViewGroup): View {
+                return NumberPicker(parent.context)
+            }
+
+            override fun bindView(adapter: ElementAdapter, view: View, element: Element) {
+                view as NumberPicker
+                view.value = element.getContent().get("value").optint(0)
+                view.minValue = element.getContent().get("minValue").optint(Integer.MIN_VALUE)
+                view.maxValue = element.getContent().get("maxValue").optint(Integer.MAX_VALUE)
+                parseLayoutParams(view, element.getContent(), matchParentWidth = false, matchParentHeight = false)
+                view.gravity = parseGravity(element.getContent().get("gravity"), Gravity.CENTER)
+                val handler = element.getContent().get("handler")
+
+                if (handler is LuaFunction) {
+                    view.setOnValueChangedListener { _, _, newValue ->
+                        handler.call(LuaValue.valueOf(newValue))
+                    }
+                } else {
+                    view.setOnClickListener(null)
+                }
+            }
         };
 
         companion object {
             fun parse(name: String): ElementType? {
                 return try {
-                    ElementType.valueOf(name.toUpperCase())
+                    ElementType.valueOf(camelCaseToUpperSnakeCase(name))
                 } catch (e: IllegalArgumentException) {
                     null
                 }
             }
         }
 
-        abstract fun createView(parent: View): View
+        abstract fun createView(parent: ViewGroup): View
         abstract fun bindView(adapter: ElementAdapter, view: View, element: Element)
 
-        open fun createViewHolder(parent: View): ElementViewHolder {
+        open fun createViewHolder(parent: ViewGroup): ElementViewHolder {
             return ElementViewHolder(this, createView(parent))
         }
 
@@ -237,7 +412,7 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
         }
 
         fun getContentHtml(name: String): Spanned {
-            val string = getContentAttribute(name).checkjstring()
+            val string = getContentAttribute(name).optjstring("")
 
             return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 Html.fromHtml(string, Html.FROM_HTML_MODE_LEGACY)
@@ -255,7 +430,7 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
             return getType().ordinal
         }
 
-        fun createBoundView(parent: View, elementAdapter: ElementAdapter): View {
+        fun createBoundView(parent: ViewGroup, elementAdapter: ElementAdapter): View {
             val type = getType()
             val view = type.createView(parent)
             type.bindView(elementAdapter, view, this)
