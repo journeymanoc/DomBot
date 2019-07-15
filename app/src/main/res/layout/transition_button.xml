@@ -7,10 +7,6 @@
     android:clickable="true"
     android:focusable="true"
     android:background="?attr/selectableItemBackground">
-    <!--
-    app:backgroundTint="@color/cardview_dark_background"
-    app:rippleColor="@color/cardview_dark_background"
-    -->
 
     <TextView
         android:id="@+id/transition_button_text_primary"

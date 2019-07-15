@@ -58,6 +58,8 @@ exports.openGroup = function(args)
         { name = 'gravity',                      required = false }, -- may be either a string or a table of strings
         { name = 'width',                        required = false }, -- an integer, 'matchParent' or 'wrapContent'
         { name = 'height',                       required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'margin',                       required = false }, -- an integer or a table of integers with optional values: horizontal, vertical, start, top, end, bottom
+        { name = 'padding',                      required = false }, -- an integer or a table of integers with optional values: horizontal, vertical, start, top, end, bottom
         { name = 'weight',                       required = false }, -- a floating point number
         { name = 'horizontal', type = 'boolean', required = false }
     )
@@ -74,11 +76,15 @@ exports.renderText = function(args)
     renderElement(args,
         'text',
         {},
-        { name = 'gravity',                  required = false }, -- may be either a string or a table of strings
-        { name = 'width',                    required = false }, -- an integer, 'matchParent' or 'wrapContent'
-        { name = 'height',                   required = false }, -- an integer, 'matchParent' or 'wrapContent'
-        { name = 'weight',                   required = false }, -- a floating point number
-        { name = 'text',    type = 'string'                   }
+        { name = 'gravity',                    required = false }, -- may be either a string or a table of strings
+        { name = 'width',                      required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'height',                     required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'weight',                     required = false }, -- a floating point number
+        { name = 'margin',                     required = false }, -- an integer or a table of integers with optional values: horizontal, vertical, start, top, end, bottom
+        { name = 'padding',                    required = false }, -- an integer or a table of integers with optional values: horizontal, vertical, start, top, end, bottom
+        { name = 'text',    type = 'string',   required = false },
+        { name = 'subtext', type = 'string',   required = false },
+        { name = 'handler', type = 'function', required = false }
     )
 end
 
@@ -86,10 +92,13 @@ exports.renderImage = function(args)
     renderElement(args,
         'image',
         {},
-        { name = 'width',                   required = false }, -- an integer, 'matchParent' or 'wrapContent'
-        { name = 'height',                  required = false }, -- an integer, 'matchParent' or 'wrapContent'
-        { name = 'weight',                  required = false }, -- a floating point number
-        { name = 'path',   type = 'string'                   }
+        { name = 'width',                      required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'height',                     required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'weight',                     required = false }, -- a floating point number
+        { name = 'margin',                     required = false }, -- an integer or a table of integers with optional values: horizontal, vertical, start, top, end, bottom
+        { name = 'padding',                    required = false }, -- an integer or a table of integers with optional values: horizontal, vertical, start, top, end, bottom
+        { name = 'path',    type = 'string'                     },
+        { name = 'handler', type = 'function', required = false }
     )
 end
 
@@ -101,22 +110,10 @@ exports.renderButton = function(args)
         { name = 'width',                      required = false }, -- an integer, 'matchParent' or 'wrapContent'
         { name = 'height',                     required = false }, -- an integer, 'matchParent' or 'wrapContent'
         { name = 'weight',                     required = false }, -- a floating point number
+        { name = 'margin',                     required = false }, -- an integer or a table of integers with optional values: horizontal, vertical, start, top, end, bottom
+        { name = 'padding',                    required = false }, -- an integer or a table of integers with optional values: horizontal, vertical, start, top, end, bottom
         { name = 'text',    type = 'string'                     },
-        { name = 'handler', type = 'function'                   }
-    )
-end
-
-exports.renderTransitionButton = function(args)
-    renderElement(args,
-        'transitionButton',
-        {},
-        { name = 'gravity',                    required = false }, -- may be either a string or a table of strings
-        { name = 'width',                      required = false }, -- an integer, 'matchParent' or 'wrapContent'
-        { name = 'height',                     required = false }, -- an integer, 'matchParent' or 'wrapContent'
-        { name = 'weight',                     required = false }, -- a floating point number
-        { name = 'text',    type = 'string'                     },
-        { name = 'subtext', type = 'string',   required = false },
-        { name = 'handler', type = 'function'                   }
+        { name = 'handler', type = 'function', required = false }
     )
 end
 
@@ -128,8 +125,10 @@ exports.renderCheckBox = function(args)
         { name = 'width',                      required = false }, -- an integer, 'matchParent' or 'wrapContent'
         { name = 'height',                     required = false }, -- an integer, 'matchParent' or 'wrapContent'
         { name = 'weight',                     required = false }, -- a floating point number
+        { name = 'margin',                     required = false }, -- an integer or a table of integers with optional values: horizontal, vertical, start, top, end, bottom
+        { name = 'padding',                    required = false }, -- an integer or a table of integers with optional values: horizontal, vertical, start, top, end, bottom
         { name = 'text',    type = 'string',   required = false },
-        { name = 'handler', type = 'function'                   }
+        { name = 'handler', type = 'function', required = false }
     )
 end
 
@@ -141,10 +140,12 @@ exports.renderTextInput = function(args)
         { name = 'width',                          required = false }, -- an integer, 'matchParent' or 'wrapContent'
         { name = 'height',                         required = false }, -- an integer, 'matchParent' or 'wrapContent'
         { name = 'weight',                         required = false }, -- a floating point number
+        { name = 'margin',                         required = false }, -- an integer or a table of integers with optional values: horizontal, vertical, start, top, end, bottom
+        { name = 'padding',                        required = false }, -- an integer or a table of integers with optional values: horizontal, vertical, start, top, end, bottom
         { name = 'text',        type = 'string',   required = false },
         { name = 'placeholder', type = 'string',   required = false },
         { name = 'inputType',                      required = false },
-        { name = 'handler',     type = 'function'                   }
+        { name = 'handler',     type = 'function', required = false }
     )
 end
 
@@ -152,14 +153,18 @@ exports.renderNumberPicker = function(args)
     renderElement(args,
         'numberPicker',
         {},
-        { name = 'gravity',                     required = false }, -- may be either a string or a table of strings
-        { name = 'width',                       required = false }, -- an integer, 'matchParent' or 'wrapContent'
-        { name = 'height',                      required = false }, -- an integer, 'matchParent' or 'wrapContent'
-        { name = 'weight',                      required = false }, -- a floating point number
-        { name = 'value',    type = 'number',   required = false },
-        { name = 'minValue', type = 'number',   required = false },
-        { name = 'maxValue', type = 'number',   required = false },
-        { name = 'handler',  type = 'function'                   }
+        { name = 'gravity',                      required = false }, -- may be either a string or a table of strings
+        { name = 'width',                        required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'height',                       required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'weight',                       required = false }, -- a floating point number
+        { name = 'margin',                       required = false }, -- an integer or a table of integers with optional values: horizontal, vertical, start, top, end, bottom
+        { name = 'padding',                      required = false }, -- an integer or a table of integers with optional values: horizontal, vertical, start, top, end, bottom
+        { name = 'value',     type = 'number',   required = false }, -- the default integer value
+        { name = 'minValue',  type = 'number',   required = false }, -- the minimum selectable integer value
+        { name = 'maxValue',  type = 'number',   required = false }, -- the maximum selectable integer value
+        { name = 'wrap',      type = 'boolean',  required = false }, -- true, if the values should wrap around
+        { name = 'formatter', type = 'function', required = false }, -- a function that takes an integer value and formats it as a string to display as an item
+        { name = 'handler',   type = 'function', required = false }  -- called when the selected value changed, with the new value as an argument
     )
 end
 

@@ -1,20 +1,12 @@
 package org.journeymanoc.obediencetrainer
 
-import android.annotation.SuppressLint
-import android.app.ActionBar
-import android.app.Activity
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Paint
-import android.graphics.Picture
 import android.os.Build
 import android.text.*
-import android.view.*
+import android.view.Gravity
+import android.view.View
+import android.view.ViewGroup
 import android.widget.*
-import androidx.appcompat.view.menu.MenuBuilder
-import androidx.appcompat.view.menu.MenuView
-import androidx.core.content.getSystemService
-import androidx.core.view.children
 import androidx.recyclerview.widget.RecyclerView
 import org.luaj.vm2.LuaError
 import org.luaj.vm2.LuaFunction
@@ -45,6 +37,9 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
     }
 
     companion object {
+        const val MARGIN_DEFAULT_HORIZONTAL = 32
+        const val MARGIN_DEFAULT_VERTICAL   = 24
+
         fun parseInputTypeClass(raw: String): Int {
             return when (raw.toUpperCase().replace("_", "", false)) {
                 "NONE", "NULL" -> InputType.TYPE_NULL
@@ -162,7 +157,7 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
             }
         }
 
-        fun parseLayoutParams(view: View, content: LuaTable, matchParentWidth: Boolean, matchParentHeight: Boolean) {
+        fun parseLayoutParams(view: View, element: Element, matchParentWidth: Boolean, matchParentHeight: Boolean, marginDefaultStart: Int?, marginDefaultTop: Int?, marginDefaultEnd: Int?, marginDefaultBottom: Int?) {
             if (view.layoutParams === null) {
                 view.layoutParams = LinearLayout.LayoutParams(
                     if (matchParentWidth) LinearLayout.LayoutParams.MATCH_PARENT else LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -170,8 +165,8 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
                 )
             }
 
-            val luaWidth = content.get("width")
-            val luaHeight = content.get("height")
+            val luaWidth = element.getContent().get("width")
+            val luaHeight = element.getContent().get("height")
 
             val width = when {
                 luaWidth.isnumber() && luaWidth.checkint() >= 0 -> luaWidth.checkint()
@@ -193,8 +188,105 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
             height?.also { view.layoutParams.height = it }
 
             if (view.layoutParams is LinearLayout.LayoutParams) {
-                (view.layoutParams as LinearLayout.LayoutParams).weight = content.get("weight").optdouble(1.0).toFloat()
+                (view.layoutParams as LinearLayout.LayoutParams).weight = element.getContent().get("weight").optdouble(1.0).toFloat()
             }
+
+            if (view.layoutParams is ViewGroup.MarginLayoutParams) {
+                val layoutParams: ViewGroup.MarginLayoutParams = view.layoutParams as ViewGroup.MarginLayoutParams
+                val lua = element.getContent().get("margin")
+                val constraints = getConstraints(view, lua, marginDefaultStart, marginDefaultTop, marginDefaultEnd, marginDefaultBottom)
+                val prevMarginStart = layoutParams.marginStart
+                val prevMarginEnd   = layoutParams.marginEnd
+
+                layoutParams.setMargins(0, // we don't want to set left/right, but rather start/end instead
+                                        constraints.top ?: layoutParams.topMargin,
+                                        0, // we don't want to set left/right, but rather start/end instead
+                                        constraints.bottom ?: layoutParams.bottomMargin)
+                layoutParams.marginStart = constraints.start ?: prevMarginStart
+                layoutParams.marginEnd   = constraints.end   ?: prevMarginEnd
+            }
+        }
+
+        fun parseLayoutParams(view: View, element: Element, matchParentWidth: Boolean, matchParentHeight: Boolean, marginDefaultHorizontal: Int?, marginDefaultVertical: Int?) {
+            Companion.parseLayoutParams(view, element, matchParentWidth, matchParentHeight, marginDefaultHorizontal, marginDefaultVertical, marginDefaultHorizontal, marginDefaultVertical)
+        }
+
+        fun parseLayoutParams(view: View, element: Element, matchParentWidth: Boolean, matchParentHeight: Boolean, marginDefault: Int?) {
+            Companion.parseLayoutParams(view, element, matchParentWidth, matchParentHeight, marginDefault, marginDefault)
+        }
+
+        fun parseLayoutParams(view: View, element: Element, matchParentWidth: Boolean, matchParentHeight: Boolean) {
+            Companion.parseLayoutParams(view, element, matchParentWidth, matchParentHeight, MARGIN_DEFAULT_HORIZONTAL, MARGIN_DEFAULT_VERTICAL)
+        }
+
+        fun useHandlerAsOnClickListener(view: View, element: Element) {
+            val handler = element.getContent().get("handler")
+
+            if (handler is LuaFunction) {
+                view.setOnClickListener {
+                    handler.call()
+                }
+                view.isFocusable = true
+                view.isClickable = true
+            } else {
+                view.setOnClickListener(null)
+                view.isFocusable = false
+                view.isClickable = false
+            }
+        }
+
+        fun getConstraints(view: View, lua: LuaValue, defaultStart: Int?, defaultTop: Int?, defaultEnd: Int?, defaultBottom: Int?): Constraints {
+            var start = defaultStart
+            var top = defaultTop
+            var end = defaultEnd
+            var bottom = defaultBottom
+
+            when {
+                lua.isnil() -> { /* keep default values */ }
+                lua.isnumber() -> {
+                    val all = lua.checkint()
+                    start = all
+                    top = all
+                    end = all
+                    bottom = all
+                }
+                lua.istable() -> {
+                    val table = lua.checktable()
+
+                    table.rawget("horizontal").let { if (it.isnumber()) it.checkint() else null }?.also { start  = it; end    = it }
+                    table.rawget("vertical"  ).let { if (it.isnumber()) it.checkint() else null }?.also { top    = it; bottom = it }
+
+                    table.rawget("start" ).let { if (it.isnumber()) it.checkint() else null }?.also { start  = it }
+                    table.rawget("top"   ).let { if (it.isnumber()) it.checkint() else null }?.also { top    = it }
+                    table.rawget("end"   ).let { if (it.isnumber()) it.checkint() else null }?.also { end    = it }
+                    table.rawget("bottom").let { if (it.isnumber()) it.checkint() else null }?.also { bottom = it }
+                }
+                else -> throw LuaError("Invalid constraints, must be either a table or a number.")
+            }
+
+            return Constraints(start, top, end, bottom)
+        }
+
+        fun usePadding(view: View, element: Element, defaultStart: Int?, defaultTop: Int?, defaultEnd: Int?, defaultBottom: Int?) {
+            val lua = element.getContent().get("padding")
+            val constraints = getConstraints(view, lua, defaultStart, defaultTop, defaultEnd, defaultBottom)
+
+            view.setPadding(constraints.start ?: view.paddingStart,
+                            constraints.top ?: view.paddingTop,
+                            constraints.end ?: view.paddingEnd,
+                            constraints.bottom ?: view.paddingBottom)
+        }
+
+        fun usePadding(view: View, element: Element, defaultHorizontal: Int?, defaultVertical: Int?) {
+            usePadding(view, element, defaultHorizontal, defaultVertical, defaultHorizontal, defaultVertical)
+        }
+
+        fun usePadding(view: View, element: Element, defaultPadding: Int?) {
+            usePadding(view, element, defaultPadding, defaultPadding)
+        }
+
+        fun usePadding(view: View, element: Element) {
+            usePadding(view, element, null)
         }
     }
 
@@ -208,8 +300,7 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
 
             override fun bindView(adapter: ElementAdapter, view: View, element: Element) {
                 view as LinearLayout
-                val content = element.getContent()
-                val children = content.get("children").checktable()
+                val children = element.getContent().get("children").checktable()
 
                 view.removeAllViews()
 
@@ -220,9 +311,10 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
                     view.addView(childView)
                 }
 
-                parseLayoutParams(view, content, matchParentWidth = true, matchParentHeight = false)
-                view.gravity = parseGravity(content.get("gravity"), Gravity.TOP or Gravity.START)
-                view.orientation = if (content.get("horizontal").toboolean()) {
+                parseLayoutParams(view, element, matchParentWidth = true, matchParentHeight = false)
+                usePadding(view, element)
+                view.gravity = parseGravity(element.getContent().get("gravity"), Gravity.TOP or Gravity.START)
+                view.orientation = if (element.getContent().get("horizontal").toboolean()) {
                     LinearLayout.HORIZONTAL
                 } else {
                     LinearLayout.VERTICAL
@@ -233,14 +325,36 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
         },
         TEXT {
             override fun createView(parent: ViewGroup): View {
-                return TextView(parent.context)
+                return MainActivity.instance.layoutInflater.inflate(R.layout.transition_button, null)
             }
 
             override fun bindView(adapter: ElementAdapter, view: View, element: Element) {
-                view as TextView
-                view.text = element.getContentHtml("text")
-                parseLayoutParams(view, element.getContent(), matchParentWidth = true, matchParentHeight = false)
-                view.gravity = parseGravity(element.getContent().get("gravity"), Gravity.TOP or Gravity.START)
+                val primaryText: TextView = view.findViewById(R.id.transition_button_text_primary)
+                val secondaryText: TextView = view.findViewById(R.id.transition_button_text_secondary)
+
+                element.getContentHtml("text").also { content ->
+                    if (content !== null) {
+                        primaryText.visibility = View.VISIBLE
+                        primaryText.text = content
+                    } else {
+                        primaryText.visibility = View.GONE
+                        primaryText.text = null
+                    }
+                }
+
+                element.getContentHtml("subtext").also { content ->
+                    if (content !== null) {
+                        secondaryText.visibility = View.VISIBLE
+                        secondaryText.text = content
+                    } else {
+                        secondaryText.visibility = View.GONE
+                        secondaryText.text = null
+                    }
+                }
+
+                parseLayoutParams(view, element, matchParentWidth = true, matchParentHeight = false, marginDefault = 0)
+                usePadding(view, element, MARGIN_DEFAULT_HORIZONTAL, MARGIN_DEFAULT_VERTICAL)
+                useHandlerAsOnClickListener(view, element)
             }
         },
         IMAGE {
@@ -250,13 +364,14 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
 
             override fun bindView(adapter: ElementAdapter, view: View, element: Element) {
                 view as ImageView
-                val content = element.getContent()
-                val path = content.get("path").checkjstring()
+                val path = element.getContent().get("path").checkjstring()
                 val inputStream = adapter.game.dataSource.readPath(path)
                 val bitmap = BitmapFactory.decodeStream(inputStream)
 
                 view.setImageBitmap(bitmap)
-                parseLayoutParams(view, element.getContent(), matchParentWidth = false, matchParentHeight = false)
+                parseLayoutParams(view, element, matchParentWidth = false, matchParentHeight = false)
+                usePadding(view, element)
+                useHandlerAsOnClickListener(view, element)
             }
         },
         BUTTON {
@@ -267,40 +382,10 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
             override fun bindView(adapter: ElementAdapter, view: View, element: Element) {
                 view as TextView
                 view.text = element.getContentHtml("text")
-                parseLayoutParams(view, element.getContent(), matchParentWidth = false, matchParentHeight = false)
+                parseLayoutParams(view, element, matchParentWidth = false, matchParentHeight = false)
+                usePadding(view, element)
                 view.gravity = parseGravity(element.getContent().get("gravity"), Gravity.CENTER)
-                val handler = element.getContent().get("handler")
-
-                if (handler is LuaFunction) {
-                    view.setOnClickListener {
-                        handler.call()
-                    }
-                } else {
-                    view.setOnClickListener(null)
-                }
-            }
-        },
-        TRANSITION_BUTTON {
-            override fun createView(parent: ViewGroup): View {
-                return MainActivity.instance.layoutInflater.inflate(R.layout.transition_button, null)
-                //return parent.context.getSystemService<LayoutInflater>()!!.inflate(R.layout.transition_button, null)
-            }
-
-            override fun bindView(adapter: ElementAdapter, view: View, element: Element) {
-                val primaryText: TextView = view.findViewById(R.id.transition_button_text_primary)
-                val secondaryText: TextView = view.findViewById(R.id.transition_button_text_secondary)
-                primaryText.text = element.getContentHtml("text")
-                secondaryText.text = element.getContentHtml("subtext")
-                parseLayoutParams(view, element.getContent(), matchParentWidth = true, matchParentHeight = false)
-                val handler = element.getContent().get("handler")
-
-                if (handler is LuaFunction) {
-                    view.setOnClickListener {
-                        handler.call()
-                    }
-                } else {
-                    view.setOnClickListener(null)
-                }
+                useHandlerAsOnClickListener(view, element)
             }
         },
         CHECK_BOX {
@@ -311,16 +396,19 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
             override fun bindView(adapter: ElementAdapter, view: View, element: Element) {
                 view as CheckBox
                 view.text = element.getContentHtml("text")
-                parseLayoutParams(view, element.getContent(), matchParentWidth = true, matchParentHeight = false)
-                view.gravity = parseGravity(element.getContent().get("gravity"), Gravity.CENTER)
-                val handler = element.getContent().get("handler")
+                parseLayoutParams(view, element, matchParentWidth = true, matchParentHeight = false)
+                usePadding(view, element, MARGIN_DEFAULT_VERTICAL, null, null, null)
+                view.gravity = parseGravity(element.getContent().get("gravity"), Gravity.START or Gravity.CENTER_VERTICAL)
+                view.textSize = 16f
 
-                if (handler is LuaFunction) {
-                    view.setOnCheckedChangeListener { _, checked ->
-                        handler.call(LuaValue.valueOf(checked))
+                element.getContent().get("handler").also { handler ->
+                    if (handler is LuaFunction) {
+                        view.setOnCheckedChangeListener { _, checked ->
+                            handler.call(LuaValue.valueOf(checked))
+                        }
+                    } else {
+                        view.setOnClickListener(null)
                     }
-                } else {
-                    view.setOnClickListener(null)
                 }
             }
         },
@@ -334,23 +422,25 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
                 view.text.clear()
                 view.text.append(element.getContent().get("text").optjstring(""))
                 view.hint = element.getContent().get("placeholder").optjstring(null)
-                parseLayoutParams(view, element.getContent(), matchParentWidth = true, matchParentHeight = false)
+                parseLayoutParams(view, element, matchParentWidth = true, matchParentHeight = false)
+                usePadding(view, element)
                 view.gravity = parseGravity(element.getContent().get("gravity"), Gravity.CENTER)
                 view.inputType = parseInputType(element.getContent().get("inputType"))
-                val handler = element.getContent().get("handler")
 
-                if (handler is LuaFunction) {
-                    view.setTextChangedListener(object : TextWatcher {
-                        override fun afterTextChanged(s: Editable?) {
-                            handler.call(LuaValue.valueOf(s?.toString() ?: ""))
-                        }
+                element.getContent().get("handler").also { handler ->
+                    if (handler is LuaFunction) {
+                        view.setTextChangedListener(object : TextWatcher {
+                            override fun afterTextChanged(s: Editable?) {
+                                handler.call(LuaValue.valueOf(s?.toString() ?: ""))
+                            }
 
-                        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
 
-                    })
-                } else {
-                    view.setOnClickListener(null)
+                        })
+                    } else {
+                        view.setOnClickListener(null)
+                    }
                 }
             }
         },
@@ -361,19 +451,35 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
 
             override fun bindView(adapter: ElementAdapter, view: View, element: Element) {
                 view as NumberPicker
-                view.value = element.getContent().get("value").optint(0)
                 view.minValue = element.getContent().get("minValue").optint(Integer.MIN_VALUE)
                 view.maxValue = element.getContent().get("maxValue").optint(Integer.MAX_VALUE)
-                parseLayoutParams(view, element.getContent(), matchParentWidth = false, matchParentHeight = false)
+                view.value = element.getContent().get("value").optint(0)
+                view.wrapSelectorWheel = element.getContent().get("wrap").optboolean(false)
+                parseLayoutParams(view, element, matchParentWidth = false, matchParentHeight = false)
+                usePadding(view, element)
                 view.gravity = parseGravity(element.getContent().get("gravity"), Gravity.CENTER)
-                val handler = element.getContent().get("handler")
 
-                if (handler is LuaFunction) {
-                    view.setOnValueChangedListener { _, _, newValue ->
-                        handler.call(LuaValue.valueOf(newValue))
+                element.getContent().get("handler").also { handler ->
+                    if (handler is LuaFunction) {
+                        view.setOnValueChangedListener { _, _, newValue -> handler.call(LuaValue.valueOf(newValue)) }
+                    } else {
+                        view.setOnClickListener(null)
                     }
-                } else {
-                    view.setOnClickListener(null)
+                }
+
+                element.getContent().get("formatter").also { formatter ->
+                    if (formatter is LuaFunction) {
+                        view.setFormatter { value -> formatter.call(LuaValue.valueOf(value)).tojstring() }
+                    } else {
+                        view.setFormatter(null)
+                    }
+
+                    try { // Force re-formatting of the first value, which by default is unformatted due to a bug
+                        val f = NumberPicker::class.java.getDeclaredField("mInputText")
+                        f.isAccessible = true
+                        val inputText = f.get(view) as EditText
+                        inputText.filters = emptyArray()
+                    } catch (e: Throwable) {}
                 }
             }
         };
@@ -411,13 +517,13 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
             return getContent().get(name)
         }
 
-        fun getContentHtml(name: String): Spanned {
-            val string = getContentAttribute(name).optjstring("")
+        fun getContentHtml(name: String): Spanned? {
+            val string = getContentAttribute(name).optjstring(null)
 
-            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                Html.fromHtml(string, Html.FROM_HTML_MODE_LEGACY)
-            } else {
-                Html.fromHtml(string)
+            return when {
+                string === null -> null
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.N -> Html.fromHtml(string, Html.FROM_HTML_MODE_LEGACY)
+                else -> Html.fromHtml(string)
             }
         }
 

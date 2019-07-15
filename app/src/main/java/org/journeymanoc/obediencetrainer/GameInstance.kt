@@ -8,10 +8,7 @@ import android.os.SystemClock
 import android.view.View
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import androidx.recyclerview.widget.SortedList
 import com.google.gson.JsonArray
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import org.journeymanoc.obediencetrainer.lua.LuaPersistence
 import org.journeymanoc.obediencetrainer.lua.libs.InternalLib
 import org.journeymanoc.obediencetrainer.lua.libs.IsolatedBaseLib
@@ -21,7 +18,6 @@ import org.luaj.vm2.compiler.LuaC
 import org.luaj.vm2.lib.*
 import org.luaj.vm2.lib.jse.JseMathLib
 import java.io.File
-import java.nio.charset.Charset
 import java.util.*
 import kotlin.collections.ArrayList
 
@@ -77,8 +73,8 @@ class GameInstance(val game: Game, val metadata: GameInstanceMetadata, context: 
         val elementAdapter = ElementAdapter(game, LuaTable())
         val mainRecyclerView: RecyclerView = RecyclerView(context).apply {
             id = R.id.main_recycler_view
-            setPadding(32, 24, 32, 24)
-            clipToPadding = false
+            //setPadding(32, 24, 32, 24)
+            //clipToPadding = false
         }
 
         mainRecyclerView.setHasFixedSize(true)
