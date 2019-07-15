@@ -55,13 +55,14 @@ exports.openGroup = function(args)
     local element = renderElement(args,
         'group',
         { children = {} },
-        { name = 'gravity',                      required = false }, -- may be either a string or a table of strings
-        { name = 'width',                        required = false }, -- an integer, 'matchParent' or 'wrapContent'
-        { name = 'height',                       required = false }, -- an integer, 'matchParent' or 'wrapContent'
-        { name = 'margin',                       required = false }, -- an integer or a table of integers with optional values: horizontal, vertical, start, top, end, bottom
-        { name = 'padding',                      required = false }, -- an integer or a table of integers with optional values: horizontal, vertical, start, top, end, bottom
-        { name = 'weight',                       required = false }, -- a floating point number
-        { name = 'horizontal', type = 'boolean', required = false }
+        { name = 'gravity',                       required = false }, -- may be either a string or a table of strings
+        { name = 'width',                         required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'height',                        required = false }, -- an integer, 'matchParent' or 'wrapContent'
+        { name = 'margin',                        required = false }, -- an integer or a table of integers with optional values: horizontal, vertical, start, top, end, bottom
+        { name = 'padding',                       required = false }, -- an integer or a table of integers with optional values: horizontal, vertical, start, top, end, bottom
+        { name = 'weight',                        required = false }, -- a floating point number
+        { name = 'horizontal', type = 'boolean',  required = false },
+        { name = 'handler',    type = 'function', required = false }
     )
     elementRenderQueueStack:push(element.content.children)
 end

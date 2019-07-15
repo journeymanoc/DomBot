@@ -313,14 +313,13 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
 
                 parseLayoutParams(view, element, matchParentWidth = true, matchParentHeight = false)
                 usePadding(view, element)
+                useHandlerAsOnClickListener(view, element)
                 view.gravity = parseGravity(element.getContent().get("gravity"), Gravity.TOP or Gravity.START)
                 view.orientation = if (element.getContent().get("horizontal").toboolean()) {
                     LinearLayout.HORIZONTAL
                 } else {
                     LinearLayout.VERTICAL
                 }
-
-                //view.invalidate()
             }
         },
         TEXT {
@@ -329,8 +328,10 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
             }
 
             override fun bindView(adapter: ElementAdapter, view: View, element: Element) {
+                view as LinearLayout
                 val primaryText: TextView = view.findViewById(R.id.transition_button_text_primary)
                 val secondaryText: TextView = view.findViewById(R.id.transition_button_text_secondary)
+                val gravity = parseGravity(element.getContent().get("gravity"), Gravity.START or Gravity.CENTER_VERTICAL)
 
                 element.getContentHtml("text").also { content ->
                     if (content !== null) {
@@ -354,6 +355,9 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
 
                 parseLayoutParams(view, element, matchParentWidth = true, matchParentHeight = false, marginDefault = 0)
                 usePadding(view, element, MARGIN_DEFAULT_HORIZONTAL, MARGIN_DEFAULT_VERTICAL)
+                primaryText.gravity = gravity
+                secondaryText.gravity = gravity
+                view.gravity = gravity
                 useHandlerAsOnClickListener(view, element)
             }
         },

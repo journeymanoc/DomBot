@@ -97,7 +97,8 @@ end
 
 --[[
  Schedules a call to the global function `onNotify` to be called at `rawArgs.instant` with the notification as a
- parameter (a table containing the fields `id`, `instant` and `data`)
+ parameter (a table containing the fields `id`, `instant` and `data`). Cancels any previously scheduled notification
+ with the same `id`, in case of `id` not being `nil`.
 
  @param `rawArgs`         A table with the following fields:
  @param `rawArgs.id`      The optional identificator of the notification, used to cancel a scheduled notification or

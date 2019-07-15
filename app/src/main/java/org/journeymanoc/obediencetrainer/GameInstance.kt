@@ -274,7 +274,16 @@ class GameInstance(val game: Game, val metadata: GameInstanceMetadata, context: 
         try {
             chunk.call()!!
         } catch (e: LuaError) {
-            e.printStackTrace()
+            val regex = "^(.{0,64})(.*):(\\d+) (.*?)$".toRegex(RegexOption.DOT_MATCHES_ALL)
+            val errorMessage = regex.matchEntire(e.message!!)?.let { matchResult ->
+                val truncatedFile = matchResult.groups[1]!!.value.replace('\n', ' ') +
+                    if (matchResult.groups[2]!!.range.let { it.last - it.first } == 0) "" else "…"
+                val line = matchResult.groups[3]!!.value
+                val message = matchResult.groups[4]!!.value
+                "`$truncatedFile`:$line $message"
+            } ?: e.message
+
+            throw RuntimeException(errorMessage)
         }
     }
 

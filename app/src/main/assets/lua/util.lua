@@ -159,6 +159,37 @@ exports.Stack.new = function(...)
     return t
 end
 
+exports.Set = {}
+
+exports.Set.new = function()
+    local set = {}
+    local private = {}
+
+    function set:add(item)
+        private[item] = true
+    end
+
+    function set:contains(item)
+        return private[item]
+    end
+
+    function set:remove(item)
+        local value = private[item]
+        private[item] = nil
+        return value
+    end
+
+    function set:len()
+        return #private
+    end
+
+    function set:list()
+        return exports.keys(private)
+    end
+
+    return set
+end
+
 exports.keys = function(table)
     local function closure(_, key)
         local new_key, _ = next(table, key)

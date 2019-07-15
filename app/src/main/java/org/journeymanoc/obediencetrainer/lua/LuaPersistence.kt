@@ -1,12 +1,9 @@
 package org.journeymanoc.obediencetrainer.lua
 
 import com.google.gson.*
-import com.google.gson.internal.LazilyParsedNumber
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
 import java.io.*
-import java.lang.IllegalStateException
-import java.lang.NumberFormatException
 import java.util.*
 
 class LuaPersistence {
@@ -170,14 +167,16 @@ class LuaPersistence {
         }
 
         fun cloneLua(data: LuaValue, silentFail: Boolean): LuaValue {
-            val input = PipedInputStream()
-            val output = PipedOutputStream(input)
-            val reader = InputStreamReader(input)
+            val output = ByteArrayOutputStream()
             val writer = OutputStreamWriter(output)
 
             writer.use {
                 LuaPersistence.writeLuaAsJson(data, writer, silentFail)
+                it.flush()
             }
+
+            val input = ByteArrayInputStream(output.toByteArray())
+            val reader = InputStreamReader(input)
 
             return reader.use {
                 LuaPersistence.readJsonAsLua(reader)
