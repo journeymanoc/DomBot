@@ -33,6 +33,14 @@ exports.getCurrentInstant = function()
     return internal.getCurrentInstant()
 end
 
+exports.getInstantFields = function()
+    return { 'year', 'monthOfYear', 'dayOfMonth', 'hourOfDay', 'minuteOfHour', 'secondOfMinute', 'millisecondOfSecond' }
+end
+
+exports.getDurationFields = function()
+    return { 'years', 'months', 'days', 'hours', 'minutes', 'seconds', 'milliseconds' }
+end
+
 --[[
  @param `a` The first instant;
  @param `b` The second instant;
@@ -42,9 +50,7 @@ end
  @see `shiftInstantBy`
 ]]
 exports.compareInstants = function(a, b)
-    local fieldsToOrderBy = {
-        'year', 'monthOfYear', 'dayOfMonth', 'hourOfDay', 'minuteOfHour', 'secondOfMinute', 'millisecondOfSecond'
-    }
+    local fieldsToOrderBy = exports.getInstantFields()
     for field in util.values(fieldsToOrderBy) do
         if type(a[field]) ~= 'number' then
             error('NaN: a["'..field..'"] = '..tostring(a[field]))

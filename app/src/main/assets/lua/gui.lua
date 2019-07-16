@@ -129,6 +129,7 @@ exports.renderCheckBox = function(args)
         { name = 'margin',                     required = false }, -- an integer or a table of integers with optional values: horizontal, vertical, start, top, end, bottom
         { name = 'padding',                    required = false }, -- an integer or a table of integers with optional values: horizontal, vertical, start, top, end, bottom
         { name = 'text',    type = 'string',   required = false },
+        { name = 'checked', type = 'boolean',  required = false },
         { name = 'handler', type = 'function', required = false }
     )
 end

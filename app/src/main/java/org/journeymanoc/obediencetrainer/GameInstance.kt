@@ -135,7 +135,7 @@ class GameInstance(val game: Game, val metadata: GameInstanceMetadata, context: 
     fun commitPersistentData() {
         val persistent = globals.rawget("persistent")
 
-        println("Persisting: " + LuaPersistence.luaToString(persistent, true))
+        //println("Persisting: " + LuaPersistence.luaToString(persistent, true))
 
         val json = LuaPersistence.luaToJson(persistent, true)
 
@@ -144,12 +144,12 @@ class GameInstance(val game: Game, val metadata: GameInstanceMetadata, context: 
 
     inner class NotifyCallbackHandler : Handler.Callback {
         override fun handleMessage(msg: Message): Boolean {
-            println("HANDLING MESSAGE")
+            //println("HANDLING MESSAGE")
             val notification = msg.obj as Notification
 
             synchronized(notifications) {
                 if (!notifications.remove(notification)) {
-                    println("HANDLING ABORTED, MESSAGE NOT IN QUEUE")
+                    //println("HANDLING ABORTED, MESSAGE NOT IN QUEUE")
                     return false
                 }
             }

@@ -1,4 +1,5 @@
 -- General utilities
+local math = require('math')
 local exports = {}
 
 -- Merges tables, with values in leftmost tables prioritized
@@ -77,12 +78,24 @@ exports.validateArguments = function(values, ...)
     return result
 end
 
-exports.map = function(table, fn)
+exports.map = function(t, fn)
     local result = {}
 
-    for k, v in pairs(table) do
+    for k, v in pairs(t) do
         local newK, newV = fn(k, v)
         result[newK] = newV
+    end
+
+    return result
+end
+
+exports.filter = function(t, predicate)
+    local result = {}
+
+    for k, v in pairs(t) do
+        if predicate(k, v) then
+            table.insert(result, v)
+        end
     end
 
     return result
@@ -210,6 +223,78 @@ exports.values = function(table)
 
     return closure, table, nil
 end
+
+-- Merge sort implementation
+local function merge(A, cmp, p, q, r)
+	local n1 = q-p+1
+	local n2 = r-q
+	local left = {}
+	local right = {}
+
+	for i=1, n1 do
+		left[i] = A[p+i-1]
+	end
+	for i=1, n2 do
+		right[i] = A[q+i]
+	end
+
+	local i=1
+	local j=1
+  local k=p
+
+	while i <= n1 and j <= n2 do
+		if cmp(left[i], right[j]) <= 0 then
+			A[k] = left[i]
+			i=i+1
+		else
+			A[k] = right[j]
+			j=j+1
+		end
+    k=k+1
+	end
+
+  while i <= n1 do
+    A[k] = left[i]
+    i=i+1
+    k=k+1
+  end
+
+  while j <= n2 do
+    A[k] = right[j]
+    j=j+1
+    k=k+1
+  end
+end
+
+local function mergeSortInner(A, cmp, p, r)
+	if p < r then
+		local q = math.floor((p + r)/2)
+		mergeSortInner(A, cmp, p, q)
+		mergeSortInner(A, cmp, q+1, r)
+		merge(A, cmp, p, q, r)
+	end
+end
+
+--[[
+ A stable sorting algorithm.
+ @param `table` The table to shallow-copy and return the sorted version of
+ @param `cmp`   The comparator to sort the values by, or `nil` for the default comparator usable for numbers
+ ]]
+exports.mergeSort = function(table, cmp)
+    local result = exports.shallowCopy(table)
+    local cmp = cmp or (function(a, b) return a - b end)
+
+    mergeSortInner(result, cmp, 1, #result)
+
+    return result
+end
+
+--[[
+ A stable sorting algorithm.
+ @param `table` The table to shallow-copy and return the sorted version of
+ @param `cmp`   The comparator to sort the values by, or `nil` for the default comparator usable for numbers
+ ]]
+exports.sort = exports.mergeSort
 
 
 return exports

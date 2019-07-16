@@ -8,7 +8,6 @@ import org.luaj.vm2.LuaValue
 import org.luaj.vm2.Varargs
 import org.luaj.vm2.lib.TwoArgFunction
 import org.luaj.vm2.lib.VarArgFunction
-import java.lang.Exception
 import java.util.*
 
 class InternalLib(val gameInstance: GameInstance) : TwoArgFunction() {
@@ -77,7 +76,7 @@ class InternalLib(val gameInstance: GameInstance) : TwoArgFunction() {
             if (!args.isnil(1) && elementAdapter !== null) {
                 val table = args.checktable(1)!!
 
-                println("processElementRenderQueue: " + LuaPersistence.luaToString(table, true))
+                //println("processElementRenderQueue: " + LuaPersistence.luaToString(table, true))
 
                 elementAdapter!!.elementRenderQueue = table
                 elementAdapter!!.notifyDataSetChanged()

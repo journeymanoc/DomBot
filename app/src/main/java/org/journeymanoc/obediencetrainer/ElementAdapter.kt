@@ -275,6 +275,10 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
                             constraints.top ?: view.paddingTop,
                             constraints.end ?: view.paddingEnd,
                             constraints.bottom ?: view.paddingBottom)
+
+            if (view is ViewGroup) {
+                view.clipToPadding = false
+            }
         }
 
         fun usePadding(view: View, element: Element, defaultHorizontal: Int?, defaultVertical: Int?) {
@@ -384,12 +388,17 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
             }
 
             override fun bindView(adapter: ElementAdapter, view: View, element: Element) {
-                view as TextView
+                view as Button
                 view.text = element.getContentHtml("text")
                 parseLayoutParams(view, element, matchParentWidth = false, matchParentHeight = false)
                 usePadding(view, element)
                 view.gravity = parseGravity(element.getContent().get("gravity"), Gravity.CENTER)
                 useHandlerAsOnClickListener(view, element)
+
+                /*
+                view.setTextColor(view.context.resources.getColor(R.color.primary_material_light))
+                view.setBackgroundColor(view.context.resources.getColor(R.color.primary_material_dark))
+                */
             }
         },
         CHECK_BOX {
@@ -399,6 +408,7 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
 
             override fun bindView(adapter: ElementAdapter, view: View, element: Element) {
                 view as CheckBox
+                view.isChecked = element.getContent().get("checked").toboolean()
                 view.text = element.getContentHtml("text")
                 parseLayoutParams(view, element, matchParentWidth = true, matchParentHeight = false)
                 usePadding(view, element, MARGIN_DEFAULT_VERTICAL, null, null, null)
