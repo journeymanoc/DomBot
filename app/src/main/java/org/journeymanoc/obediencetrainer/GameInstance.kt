@@ -5,7 +5,6 @@ import android.os.Handler
 import android.os.Looper
 import android.os.Message
 import android.os.SystemClock
-import android.view.View
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.gson.JsonArray
@@ -52,7 +51,7 @@ class GameInstance(val game: Game, val metadata: GameInstanceMetadata, context: 
 
     val instanceDirectory: File
     val globals: Globals
-    val view: View
+    val view: RecyclerView
     private val internalLib: InternalLib
     private val notifyHandler: Handler
     private var notifyHandlerPreparationOffsetMillis: Long? = null

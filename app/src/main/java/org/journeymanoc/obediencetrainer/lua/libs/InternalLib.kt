@@ -61,6 +61,7 @@ class InternalLib(val gameInstance: GameInstance) : TwoArgFunction() {
     override fun call(modname: LuaValue, env: LuaValue): LuaValue {
         val internal = LuaTable()
         internal.set("processElementRenderQueue", ProcessElementRenderQueue())
+        internal.set("updateElement", UpdateElement())
         internal.set("commitPersistentData", CommitPersistentData())
         internal.set("getCurrentInstant", GetCurrentInstant())
         internal.set("shiftInstantBy", ShiftInstantBy())
@@ -72,23 +73,46 @@ class InternalLib(val gameInstance: GameInstance) : TwoArgFunction() {
     }
 
     private inner class ProcessElementRenderQueue : VarArgFunction() {
-        override fun invoke(args: Varargs): Varargs {
-            if (!args.isnil(1) && elementAdapter !== null) {
-                val table = args.checktable(1)!!
+        override fun invoke(varargs: Varargs): Varargs {
+            if (!varargs.isnil(1) && elementAdapter !== null) {
+                val args = varargs.checktable(1)!!
+                val elementRenderQueue = varargs.checktable(2)!!
 
                 //println("processElementRenderQueue: " + LuaPersistence.luaToString(table, true))
 
-                elementAdapter!!.elementRenderQueue = table
+                elementAdapter!!.elementRenderQueue = elementRenderQueue
+                elementAdapter!!.unregisterIds()
                 elementAdapter!!.notifyDataSetChanged()
+                elementAdapter!!.registerIds()
+
+                if (args.get("resetScroll").optboolean(false) && elementAdapter!!.itemCount > 0) {
+                    gameInstance.view.scrollToPosition(0)
+                }
             }
 
             return LuaValue.varargsOf(arrayOf())
         }
     }
 
+    private inner class UpdateElement : VarArgFunction() {
+        override fun invoke(args: Varargs): Varargs {
+            if (!args.isnil(1) && elementAdapter !== null) {
+                val table = args.checktable(1)!!
+                val id = table.rawget("id").checkjstring()
+                val data = table.rawget("data").checktable()
+                val updated = elementAdapter!!.updateElement(id, data)
+
+                return LuaValue.varargsOf(arrayOf(LuaValue.valueOf(updated)))
+            }
+
+            return LuaValue.varargsOf(arrayOf(LuaValue.FALSE))
+        }
+    }
+
     private inner class CommitPersistentData : VarArgFunction() {
         override fun invoke(args: Varargs): Varargs {
             gameInstance.commitPersistentData()
+            gameInstance.commitNotifications()
 
             return LuaValue.varargsOf(arrayOf())
         }

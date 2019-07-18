@@ -1,19 +1,18 @@
 package org.journeymanoc.obediencetrainer
 
 import android.os.Bundle
-import androidx.core.view.GravityCompat
-import androidx.appcompat.app.ActionBarDrawerToggle
+import android.view.Menu
 import android.view.MenuItem
-import androidx.drawerlayout.widget.DrawerLayout
-import com.google.android.material.navigation.NavigationView
+import android.widget.EditText
+import androidx.appcompat.app.ActionBarDrawerToggle
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
-import android.view.Menu
-import android.widget.EditText
-import androidx.appcompat.app.AlertDialog
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
-import java.util.function.Predicate
+import androidx.core.view.GravityCompat
+import androidx.drawerlayout.widget.DrawerLayout
+import com.google.android.material.navigation.NavigationView
 
 /**
  * TODO:
@@ -241,12 +240,14 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     override fun onPause() {
+        println("ON PAUSE")
         super.onPause()
         gameInstances.forEach(GameInstance::onPause)
         activityState = Companion.State.CREATED
     }
 
     override fun onDestroy() {
+        println("ON DESTROY")
         super.onDestroy()
         gameInstances.forEach(GameInstance::onDestroy)
         activityState = Companion.State.NONEXISTENT

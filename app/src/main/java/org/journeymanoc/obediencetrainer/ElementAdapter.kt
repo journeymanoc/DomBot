@@ -1,8 +1,11 @@
 package org.journeymanoc.obediencetrainer
 
 import android.graphics.BitmapFactory
+import android.graphics.Color
+import android.graphics.PorterDuff
 import android.os.Build
 import android.text.*
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -14,6 +17,8 @@ import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
 
 class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : RecyclerView.Adapter<ElementAdapter.ElementViewHolder>() {
+    private val idToElement: MutableMap<String, Element> = HashMap()
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ElementViewHolder {
         val elementType = ElementType.values()[viewType]
 
@@ -32,8 +37,44 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
         return elementRenderQueue.rawlen()
     }
 
-    fun getElement(position: Int): Element {
-        return Element(elementRenderQueue.get(position + 1).checktable())
+    fun notifyElementChanged(element: Element) {
+        notifyItemChanged(element.itemIndex)
+    }
+
+    fun unregisterIds() {
+        idToElement.clear()
+    }
+
+    fun registerIds() {
+        for (i in 0 until itemCount) {
+            getElement(i).registerIds()
+        }
+    }
+
+    fun updateElement(id: String, elementData: LuaTable): Boolean {
+        val element = idToElement[id]
+
+        if (element === null) {
+            //throw LuaError("No UI element with ID `$id` found")
+            return false
+        }
+
+        element.unregisterIds()
+
+        val content = element.getContent()
+
+        for (key in elementData.keys()) {
+            content.set(key, elementData.rawget(key))
+        }
+
+        notifyElementChanged(element)
+        element.registerIds()
+
+        return true
+    }
+
+    fun getElement(itemIndex: Int): Element {
+        return Element(elementRenderQueue.get(itemIndex + 1).checktable(), itemIndex)
     }
 
     companion object {
@@ -194,7 +235,7 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
             if (view.layoutParams is ViewGroup.MarginLayoutParams) {
                 val layoutParams: ViewGroup.MarginLayoutParams = view.layoutParams as ViewGroup.MarginLayoutParams
                 val lua = element.getContent().get("margin")
-                val constraints = getConstraints(view, lua, marginDefaultStart, marginDefaultTop, marginDefaultEnd, marginDefaultBottom)
+                val constraints = getConstraints(lua, marginDefaultStart, marginDefaultTop, marginDefaultEnd, marginDefaultBottom)
                 val prevMarginStart = layoutParams.marginStart
                 val prevMarginEnd   = layoutParams.marginEnd
 
@@ -219,6 +260,36 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
             Companion.parseLayoutParams(view, element, matchParentWidth, matchParentHeight, MARGIN_DEFAULT_HORIZONTAL, MARGIN_DEFAULT_VERTICAL)
         }
 
+        fun useColors(view: View, element: Element) {
+            val backgroundColor = element.getContent().get("background").optinteger(null)
+
+            if (backgroundColor !== null) {
+                if (view.background === null) {
+                    val value = TypedValue()
+                    view.context.theme.resolveAttribute(android.R.attr.windowBackground, value, true)
+
+                    val baseColor = if (value.type >= TypedValue.TYPE_FIRST_COLOR_INT && value.type <= TypedValue.TYPE_LAST_COLOR_INT) {
+                        value.data
+                    } else {
+                        Color.WHITE
+                    }
+
+                    view.setBackgroundColor(baseColor)
+                }
+
+                // TODO: Add a way to customize the mode
+                view.background.setColorFilter(backgroundColor.checkint(), PorterDuff.Mode.MULTIPLY)
+            } else {
+                view.background?.clearColorFilter()
+            }
+
+            view.alpha = element.getContent().get("opacity").optdouble(1.0).toFloat()
+        }
+
+        fun useEnabled(view: View, element: Element) {
+            view.isEnabled = element.getContent().get("enabled").optboolean(true)
+        }
+
         fun useHandlerAsOnClickListener(view: View, element: Element) {
             val handler = element.getContent().get("handler")
 
@@ -235,7 +306,7 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
             }
         }
 
-        fun getConstraints(view: View, lua: LuaValue, defaultStart: Int?, defaultTop: Int?, defaultEnd: Int?, defaultBottom: Int?): Constraints {
+        fun getConstraints(lua: LuaValue, defaultStart: Int?, defaultTop: Int?, defaultEnd: Int?, defaultBottom: Int?): Constraints {
             var start = defaultStart
             var top = defaultTop
             var end = defaultEnd
@@ -269,7 +340,7 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
 
         fun usePadding(view: View, element: Element, defaultStart: Int?, defaultTop: Int?, defaultEnd: Int?, defaultBottom: Int?) {
             val lua = element.getContent().get("padding")
-            val constraints = getConstraints(view, lua, defaultStart, defaultTop, defaultEnd, defaultBottom)
+            val constraints = getConstraints(lua, defaultStart, defaultTop, defaultEnd, defaultBottom)
 
             view.setPadding(constraints.start ?: view.paddingStart,
                             constraints.top ?: view.paddingTop,
@@ -304,12 +375,9 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
 
             override fun bindView(adapter: ElementAdapter, view: View, element: Element) {
                 view as LinearLayout
-                val children = element.getContent().get("children").checktable()
-
                 view.removeAllViews()
 
-                for (i in 1..children.rawlen()) {
-                    val child = Element(children.get(i).checktable())
+                for (child in getChildren(element)) {
                     val childView = child.createBoundView(view, adapter)
 
                     view.addView(childView)
@@ -317,6 +385,8 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
 
                 parseLayoutParams(view, element, matchParentWidth = true, matchParentHeight = false)
                 usePadding(view, element)
+                useColors(view, element)
+                useEnabled(view, element)
                 useHandlerAsOnClickListener(view, element)
                 view.gravity = parseGravity(element.getContent().get("gravity"), Gravity.TOP or Gravity.START)
                 view.orientation = if (element.getContent().get("horizontal").toboolean()) {
@@ -324,6 +394,19 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
                 } else {
                     LinearLayout.VERTICAL
                 }
+            }
+
+            override fun getChildren(element: Element): List<Element> {
+                val children = element.getContent().get("children").checktable()
+                val result = ArrayList<Element>(children.rawlen())
+
+                for (i in 1..children.rawlen()) {
+                    val child = element.createChild(children.get(i).checktable())
+
+                    result.add(child)
+                }
+
+                return result
             }
         },
         TEXT {
@@ -359,6 +442,8 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
 
                 parseLayoutParams(view, element, matchParentWidth = true, matchParentHeight = false, marginDefault = 0)
                 usePadding(view, element, MARGIN_DEFAULT_HORIZONTAL, MARGIN_DEFAULT_VERTICAL)
+                useColors(view, element)
+                useEnabled(view, element)
                 primaryText.gravity = gravity
                 secondaryText.gravity = gravity
                 view.gravity = gravity
@@ -379,6 +464,8 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
                 view.setImageBitmap(bitmap)
                 parseLayoutParams(view, element, matchParentWidth = false, matchParentHeight = false)
                 usePadding(view, element)
+                useColors(view, element)
+                useEnabled(view, element)
                 useHandlerAsOnClickListener(view, element)
             }
         },
@@ -392,6 +479,8 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
                 view.text = element.getContentHtml("text")
                 parseLayoutParams(view, element, matchParentWidth = false, matchParentHeight = false)
                 usePadding(view, element)
+                useColors(view, element)
+                useEnabled(view, element)
                 view.gravity = parseGravity(element.getContent().get("gravity"), Gravity.CENTER)
                 useHandlerAsOnClickListener(view, element)
 
@@ -412,6 +501,8 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
                 view.text = element.getContentHtml("text")
                 parseLayoutParams(view, element, matchParentWidth = true, matchParentHeight = false)
                 usePadding(view, element, MARGIN_DEFAULT_VERTICAL, null, null, null)
+                useColors(view, element)
+                useEnabled(view, element)
                 view.gravity = parseGravity(element.getContent().get("gravity"), Gravity.START or Gravity.CENTER_VERTICAL)
                 view.textSize = 16f
 
@@ -438,6 +529,8 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
                 view.hint = element.getContent().get("placeholder").optjstring(null)
                 parseLayoutParams(view, element, matchParentWidth = true, matchParentHeight = false)
                 usePadding(view, element)
+                useColors(view, element)
+                useEnabled(view, element)
                 view.gravity = parseGravity(element.getContent().get("gravity"), Gravity.CENTER)
                 view.inputType = parseInputType(element.getContent().get("inputType"))
 
@@ -471,6 +564,8 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
                 view.wrapSelectorWheel = element.getContent().get("wrap").optboolean(false)
                 parseLayoutParams(view, element, matchParentWidth = false, matchParentHeight = false)
                 usePadding(view, element)
+                useColors(view, element)
+                useEnabled(view, element)
                 view.gravity = parseGravity(element.getContent().get("gravity"), Gravity.CENTER)
 
                 element.getContent().get("handler").also { handler ->
@@ -518,11 +613,19 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
         open fun bindViewHolder(adapter: ElementAdapter, viewHolder: ElementViewHolder, element: Element) {
             bindView(adapter, viewHolder.itemView, element)
         }
+
+        open fun getChildren(element: Element): List<Element> {
+            return emptyList()
+        }
     }
 
     class ElementViewHolder(val type: ElementType, view: View) : RecyclerView.ViewHolder(view)
 
-    class Element(private val element: LuaTable) {
+    inner class Element(private val element: LuaTable, val itemIndex: Int) {
+        fun createChild(childElement: LuaTable): Element {
+            return Element(childElement, itemIndex)
+        }
+
         fun getContent(): LuaTable {
             return element.get("content").checktable()
         }
@@ -548,6 +651,24 @@ class ElementAdapter(val game: Game, var elementRenderQueue: LuaTable) : Recycle
 
         fun getViewType(): Int {
             return getType().ordinal
+        }
+
+        fun getChildren(): List<Element> {
+            return getType().getChildren(this)
+        }
+
+        fun unregisterIds() {
+            val id = getContent().get("id").optjstring(null)
+
+            id?.also { idToElement.remove(id) }
+            getChildren().forEach(Element::unregisterIds)
+        }
+
+        fun registerIds() {
+            val id = getContent().get("id").optjstring(null)
+
+            id?.also { idToElement[id] = this }
+            getChildren().forEach(Element::registerIds)
         }
 
         fun createBoundView(parent: ViewGroup, elementAdapter: ElementAdapter): View {
