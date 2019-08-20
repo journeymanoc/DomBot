@@ -13,12 +13,19 @@ import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import com.google.android.material.navigation.NavigationView
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
+import org.eclipse.jgit.api.Git
+import org.kohsuke.github.GitHub
+import java.io.InputStreamReader
 
 /**
  * TODO:
  * - Buttons are ugly unless used for dialogs, add menu items
  * - Custom styling (fonts, colors)
  * - Game instance manipulation
+ * - Document the way games are supposed to be developed, streamline it and make it easy to prototype games
+ * - Add a way to donate to support the development
  */
 class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
     companion object {
@@ -222,10 +229,59 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         updateGameInstancesMenu()
     }
 
+    private fun prototype() {
+        val github = GitHub.connectAnonymously()
+        var repositoryName: String? = "journeymanoc/ObedienceTrainerGames"
+        var root: JsonObject
+
+        do {
+            // Use Raw file retrieval for single file downloads:
+            // curl https://raw.githubusercontent.com/journeymanoc/ObedienceTrainerGames/master/games.json
+            // Use JGit for cloning repos.
+            val games = github.getRepository(repositoryName)
+                .getTree("master")
+                .getEntry("games.json")
+                .asBlob()
+            val inputStreamReader = InputStreamReader(games.read())
+            root = JsonParser().parse(inputStreamReader).asJsonObject
+            repositoryName = root.get("redirect").asString
+        } while (repositoryName != null)
+
+        val minimumVersionCode = root.get("minimumVersionCode").asLong
+
+        if (BuildConfig.VERSION_CODE < minimumVersionCode) {
+            throw RuntimeException("Outdated version. Please update the application.")
+        }
+
+        val games = root.get("games").asJsonArray
+        val gameRepositoryMap = mutableMapOf<String, GameRepository>()
+        val gameRepositoryList = mutableListOf<GameRepository>()
+
+        for (game in games) {
+            val game = game.asJsonObject
+            val gameRepositoryName = game.get("repository").asString!!
+            val gameId = game.get("id").asString!!
+            val gameName = game.get("name").asString!!
+            val gameRepository = GameRepository(github, gameRepositoryName, gameId, gameName)
+
+            if (gameRepositoryMap[gameRepository.id] !== null) {
+                System.err.println("Ignoring game with duplicate id `${gameRepository.id}` with repository `${gameRepository.repositoryName}`, keeping `${gameRepositoryMap[gameRepository.id]!!.repositoryName}`.")
+                continue
+            }
+
+            gameRepositoryMap[gameRepository.id] = gameRepository
+            gameRepositoryList += gameRepository
+        }
+
+        println(gameRepositoryList)
+        // TODO: Check signatures
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         constructImmutableUserInterface()
 
+        prototype()
         loadGames()
         loadGameInstances()
         updateGameInstancesMenu()
