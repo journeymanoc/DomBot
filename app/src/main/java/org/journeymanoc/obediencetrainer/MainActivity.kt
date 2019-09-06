@@ -3,7 +3,10 @@ package org.journeymanoc.obediencetrainer
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
+import android.widget.Button
 import android.widget.EditText
+import android.widget.TextView
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -15,9 +18,8 @@ import androidx.drawerlayout.widget.DrawerLayout
 import com.google.android.material.navigation.NavigationView
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import org.eclipse.jgit.api.Git
-import org.kohsuke.github.GitHub
-import java.io.InputStreamReader
+import java.net.URL
+import java.nio.charset.Charset
 
 /**
  * TODO:
@@ -54,9 +56,12 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
     private lateinit var mainLayout: ConstraintLayout
     private lateinit var navigationView: NavigationView
+    private lateinit var toolbarTitle: TextView
+    private lateinit var updateButton: Button
     private lateinit var games: MutableList<Game>
     private var gameInstances: MutableList<GameInstance> = mutableListOf()
     private var currentInstanceIndex: Int? = null
+    private var fetchedGameRepositories: GameRepositories? = null
 
     private fun bindToolbarToDrawer() {
         val toolbar: Toolbar = findViewById(R.id.toolbar)
@@ -68,6 +73,9 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         invalidateOptionsMenu()
         drawerLayout.addDrawerListener(toggle)
         toggle.syncState()
+
+        toolbarTitle = toolbar.findViewById(R.id.toolbar_title)
+        updateButton = toolbar.findViewById(R.id.update_button)
     }
 
     private fun setUpNavigationListener() {
@@ -166,6 +174,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                     currentInstance.metadata.instanceName = field.text.toString()
                     currentInstance.metadata.save()
                     updateGameInstancesMenu()
+                    updateToolbarTitle()
                 }
             }
         }
@@ -210,6 +219,8 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         mainLayout.addView(gameInstance.view)
         MAIN_LAYOUT_CONSTRAINTS.applyTo(mainLayout)
         currentInstanceIndex = gameInstanceIndex
+        updateToolbarTitle()
+        updateUpdateButton()
     }
 
     private fun showGameInstance(predicate: (GameInstance) -> Boolean) {
@@ -229,8 +240,8 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         updateGameInstancesMenu()
     }
 
-    private fun prototype() {
-        val github = GitHub.connectAnonymously()
+    @Deprecated("Use the async version.")
+    private fun syncFetchGameRepositories(): GameRepositories {
         var repositoryName: String? = "journeymanoc/ObedienceTrainerGames"
         var root: JsonObject
 
@@ -238,50 +249,92 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             // Use Raw file retrieval for single file downloads:
             // curl https://raw.githubusercontent.com/journeymanoc/ObedienceTrainerGames/master/games.json
             // Use JGit for cloning repos.
-            val games = github.getRepository(repositoryName)
-                .getTree("master")
-                .getEntry("games.json")
-                .asBlob()
-            val inputStreamReader = InputStreamReader(games.read())
-            root = JsonParser().parse(inputStreamReader).asJsonObject
-            repositoryName = root.get("redirect").asString
+            root = URL("https://raw.githubusercontent.com/$repositoryName/master/games.json")
+                .openConnection().getInputStream().reader(Charset.forName("UTF-8")).use {
+                    JsonParser().parse(it)
+                }.asJsonObject
+            repositoryName = root.get("redirect")?.asString
         } while (repositoryName != null)
 
-        val minimumVersionCode = root.get("minimumVersionCode").asLong
+        val minimumVersionCode = root.get("minimumVersionCode")?.asLong
 
-        if (BuildConfig.VERSION_CODE < minimumVersionCode) {
+        if (minimumVersionCode !== null && BuildConfig.VERSION_CODE < minimumVersionCode) {
             throw RuntimeException("Outdated version. Please update the application.")
         }
 
         val games = root.get("games").asJsonArray
-        val gameRepositoryMap = mutableMapOf<String, GameRepository>()
-        val gameRepositoryList = mutableListOf<GameRepository>()
+        val gameRepositories = MutableGameRepositories()
 
         for (game in games) {
             val game = game.asJsonObject
             val gameRepositoryName = game.get("repository").asString!!
             val gameId = game.get("id").asString!!
             val gameName = game.get("name").asString!!
-            val gameRepository = GameRepository(github, gameRepositoryName, gameId, gameName)
 
-            if (gameRepositoryMap[gameRepository.id] !== null) {
-                System.err.println("Ignoring game with duplicate id `${gameRepository.id}` with repository `${gameRepository.repositoryName}`, keeping `${gameRepositoryMap[gameRepository.id]!!.repositoryName}`.")
+            val gameRepository = try {
+                GameRepository(gameRepositoryName, gameId, gameName)
+            } catch (e: Exception) {
+                System.err.println("Skipping game repository `$gameId`, reason: ${e.message}")
                 continue
             }
 
-            gameRepositoryMap[gameRepository.id] = gameRepository
-            gameRepositoryList += gameRepository
+            if (!gameRepositories.add(gameRepository)) {
+                System.err.println(
+                    "Ignoring game with duplicate id `${gameRepository.id}` with repository `${gameRepository.repositoryName}`, keeping `${gameRepositories.get(
+                        gameRepository.id
+                    )!!.repositoryName}`."
+                )
+                continue
+            }
         }
 
-        println(gameRepositoryList)
         // TODO: Check signatures
+        // TODO: Add a fallback so the application keeps working even if there is no `games` repository
+        return gameRepositories
+    }
+
+    fun asyncFetchGameRepositories(foreground: (GameRepositories?, Throwable?) -> Unit): Thread {
+        @Suppress("DEPRECATION")
+        return async(::syncFetchGameRepositories, foreground)
+    }
+
+    fun updateToolbarTitle() {
+        if (currentInstanceIndex === null) {
+            toolbarTitle.text = null
+        } else {
+            val currentInstance = gameInstances[currentInstanceIndex!!]
+
+            toolbarTitle.text = currentInstance.metadata.instanceName
+        }
+    }
+
+    fun updateUpdateButton() {
+        var show = false
+
+        if (currentInstanceIndex !== null && fetchedGameRepositories !== null) {
+            val currentInstance = gameInstances[currentInstanceIndex!!]
+            val currentRepository = fetchedGameRepositories!!.get(currentInstance.game.id)
+
+            // TODO: Finish up GameRepository#getMetadata and use it to asynchronously request the latest version
+        }
+
+        updateButton.visibility = if (show) View.VISIBLE else View.GONE
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         constructImmutableUserInterface()
 
-        prototype()
+        asyncFetchGameRepositories { result, error ->
+            if (error !== null) {
+                error.printStackTrace()
+                return@asyncFetchGameRepositories
+            }
+
+            fetchedGameRepositories = result
+            updateUpdateButton()
+        }
+
         loadGames()
         loadGameInstances()
         updateGameInstancesMenu()

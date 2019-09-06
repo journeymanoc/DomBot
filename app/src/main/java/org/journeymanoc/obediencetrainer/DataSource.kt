@@ -1,17 +1,9 @@
 package org.journeymanoc.obediencetrainer
 
-import android.content.Context
 import android.content.res.AssetManager
 import org.luaj.vm2.lib.ResourceFinder
 import java.io.*
-import java.lang.StringBuilder
-import java.nio.file.FileSystems
-import java.nio.file.Paths
-import java.util.*
-import java.util.stream.Stream
-import kotlin.collections.ArrayList
-import kotlin.collections.HashSet
-import kotlin.math.abs
+import java.net.MalformedURLException
 
 interface DataSource : ResourceFinder {
     companion object {
@@ -182,6 +174,54 @@ interface DataSource : ResourceFinder {
         }
     }
 
+    class URL: DataSource {
+        val baseUrl: String
+
+        constructor(baseUrl: String) {
+            var url = baseUrl
+
+            while (url.endsWith('/')) {
+                url = url.substring(0, url.length - 1)
+            }
+
+            this.baseUrl = url
+        }
+
+        private fun absolutePathOf(relativePath: String): java.net.URL? {
+            val resolved = resolvePath(relativePath)
+
+            return try {
+                return if (resolved === null) {
+                    java.net.URL(baseUrl)
+                } else {
+                    java.net.URL("$baseUrl/$relativePath")
+                }
+            } catch (e: MalformedURLException) {
+                System.err.println("URL DataSource tried creating a malformed URL: $baseUrl/$relativePath")
+                null
+            }
+        }
+
+        override fun paths(relativePath: String): List<String> {
+            return emptyList()
+        }
+
+        override fun containsPath(relativePath: String): Boolean {
+            return false
+        }
+
+        override fun readPath(relativePath: String): InputStream? {
+            return absolutePathOf(relativePath)?.let { absolutePath ->
+                try {
+                    absolutePath.openStream()
+                } catch (e: IOException) {
+                    System.err.println("Failed to open an InputStream to URL DataSource `$absolutePath`, error: ${e.message}")
+                    null
+                }
+            }
+        }
+    }
+
     class Union(private val sources: Array<DataSource>) : DataSource {
         override fun paths(relativePath: String): List<String> {
             return sources.asSequence() // sequence is the equivalent of Java 8 Streams, making the iteration lazy
@@ -207,6 +247,5 @@ interface DataSource : ResourceFinder {
 
             return null
         }
-
     }
 }

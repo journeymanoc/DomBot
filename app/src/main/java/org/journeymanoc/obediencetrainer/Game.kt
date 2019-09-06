@@ -2,19 +2,10 @@ package org.journeymanoc.obediencetrainer
 
 import android.content.Context
 import org.journeymanoc.obediencetrainer.DataSource
-import org.journeymanoc.obediencetrainer.Pointer
-import org.luaj.vm2.Globals
-import org.luaj.vm2.LoadState
-import org.luaj.vm2.LuaError
-import org.luaj.vm2.LuaValue
-import org.luaj.vm2.compiler.LuaC
-import org.luaj.vm2.lib.*
-import org.luaj.vm2.lib.jse.JseMathLib
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.BufferedReader
 import java.io.IOException
-import java.io.InputStreamReader
 
 class Game private constructor(builder: Builder) {
     val dataSource: DataSource get
@@ -39,6 +30,10 @@ class Game private constructor(builder: Builder) {
 
     fun readMainScript(): String? {
         return dataSource.readPathBuffered(pathToMainScript)?.readText()
+    }
+
+    fun parseVersion(): IntArray {
+        return parseVersionUniversally(version)
     }
 
     private class Builder(dataSource: DataSource) {

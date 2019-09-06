@@ -66,3 +66,51 @@ class CustomEditText(context: Context?) : EditText(context) {
         addTextChangedListener(watcher)
     }
 }
+
+fun<T> async(background: (() -> T), foreground: ((T?, Throwable?) -> Unit)?): Thread {
+    return Thread {
+        var result: T? = null
+        var error: Throwable? = null
+
+        try {
+            result = background()
+        } catch (throwable: Throwable) {
+            error = throwable
+        }
+
+        foreground?.let { foreground ->
+            MainActivity.instance.runOnUiThread {
+                foreground(result, error)
+            }
+        }
+    }.apply {
+        start()
+    }
+}
+
+fun<T> async(background: (() -> T)): Thread {
+    return async(background, null)
+}
+
+fun parseVersionUniversally(raw: String): IntArray {
+    val version = mutableListOf<Int>()
+    var segment = ""
+
+    for (char in raw) {
+        if (char in '0'..'9') {
+            segment += char
+        } else {
+            if (segment != "") {
+                version += segment.toInt()
+            }
+
+            segment = ""
+        }
+    }
+
+    if (segment != "") {
+        version += segment.toInt()
+    }
+
+    return version.toIntArray()
+}
