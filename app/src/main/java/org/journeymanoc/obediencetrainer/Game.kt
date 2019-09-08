@@ -9,6 +9,7 @@ import java.io.IOException
 
 class Game private constructor(builder: Builder) {
     val dataSource: DataSource get
+    val engineVersion: Int get
     val id: String get
     val name: String get
     val version: String get
@@ -19,6 +20,7 @@ class Game private constructor(builder: Builder) {
 
     init {
         this.dataSource = builder.dataSource
+        this.engineVersion = builder.engineVersion!!
         this.id = builder.id!!
         this.name = builder.name!!
         this.version = builder.version!!
@@ -38,6 +40,7 @@ class Game private constructor(builder: Builder) {
 
     private class Builder(dataSource: DataSource) {
         val dataSource: DataSource = dataSource; get
+        var engineVersion: Int? = null; get set
         var id: String? = null; get set
         var name: String? = null; get set
         var version: String? = null; get set
@@ -137,6 +140,12 @@ class Game private constructor(builder: Builder) {
                     }
 
                     assert(parser.name == "game") { "The root tag must be `game`" }
+
+                    for (attributeIndex in 0 until parser.attributeCount) {
+                        if (parser.getAttributeName(attributeIndex) == "engineVersion") {
+                            builder.engineVersion = parser.getAttributeValue(attributeIndex).toInt()
+                        }
+                    }
 
                     parseLevel(parser) inner@{
                         if (parser.eventType != XmlPullParser.START_TAG) {

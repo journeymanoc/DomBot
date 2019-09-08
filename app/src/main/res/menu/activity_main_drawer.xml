@@ -20,6 +20,9 @@
                 <item android:id="@+id/drawer_item_add_instance"
                       android:icon="@drawable/ic_add_black_24dp"
                       android:title="@string/drawer_item_add_instance_title"/>
+                <item android:id="@+id/drawer_item_games"
+                    android:icon="@drawable/ic_videogame_asset_black_24dp"
+                    android:title="@string/drawer_item_games_title"/>
                 <item android:id="@+id/drawer_item_settings"
                       android:icon="@drawable/ic_settings_black_24dp"
                       android:title="@string/drawer_item_settings_title"/>

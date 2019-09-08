@@ -6,6 +6,7 @@ import android.view.MenuItem
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
@@ -56,12 +57,14 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
     private lateinit var mainLayout: ConstraintLayout
     private lateinit var navigationView: NavigationView
+    private lateinit var settingsView: View
+    private lateinit var gamesView: View
     private lateinit var toolbarTitle: TextView
     private lateinit var updateButton: Button
     private lateinit var games: MutableList<Game>
     private var gameInstances: MutableList<GameInstance> = mutableListOf()
     private var currentInstanceIndex: Int? = null
-    private var fetchedGameRepositories: GameRepositories? = null
+    private var gameRepositories: AsyncFetch<GameRepositories> = AsyncFetch("MainActivity#gameRepositories", ::syncFetchGameRepositories)
 
     private fun bindToolbarToDrawer() {
         val toolbar: Toolbar = findViewById(R.id.toolbar)
@@ -90,6 +93,8 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         mainLayout = findViewById(R.id.main_layout)
         navigationView = findViewById(R.id.nav_view)
+        gamesView = LinearLayout(applicationContext)
+        settingsView = LinearLayout(applicationContext)
     }
 
     private fun loadGames(): List<Game> {
@@ -127,6 +132,8 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     private fun showGameInstanceDialog() {
+        // TODO: Display help when no games are downloaded
+
         val selectedItem = Pointer(-1)
         val cancelled = Pointer(false)
         val builder = AlertDialog.Builder(this).apply {
@@ -220,6 +227,23 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         MAIN_LAYOUT_CONSTRAINTS.applyTo(mainLayout)
         currentInstanceIndex = gameInstanceIndex
         updateToolbarTitle()
+        requestRemoteGameIfNotAcquiredFor(gameInstance.game)
+        updateUpdateButton()
+    }
+
+    private fun showGames() {
+        clearMainLayout()
+        mainLayout.addView(gamesView)
+        currentInstanceIndex = null
+        toolbarTitle.setText(R.string.drawer_item_games_title)
+        updateUpdateButton()
+    }
+
+    private fun showSettings() {
+        clearMainLayout()
+        mainLayout.addView(settingsView)
+        currentInstanceIndex = null
+        toolbarTitle.setText(R.string.drawer_item_settings_title)
         updateUpdateButton()
     }
 
@@ -293,11 +317,6 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         return gameRepositories
     }
 
-    fun asyncFetchGameRepositories(foreground: (GameRepositories?, Throwable?) -> Unit): Thread {
-        @Suppress("DEPRECATION")
-        return async(::syncFetchGameRepositories, foreground)
-    }
-
     fun updateToolbarTitle() {
         if (currentInstanceIndex === null) {
             toolbarTitle.text = null
@@ -308,30 +327,91 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
     }
 
+    fun isThereKnownToBeAnUpdateForGame(game: Game): Boolean {
+        try {
+            val gameRepositories = gameRepositories.syncGetIfFinished()
+
+            if (gameRepositories === null) {
+                return false
+            }
+
+            val remoteRepository = gameRepositories.get(game.id)
+            val remoteGame = remoteRepository?.game?.syncGetIfFinished()
+
+            if (remoteGame !== null && compareVersions(game.parseVersion(), remoteGame.parseVersion()) < 0) {
+                return true
+            }
+            // TODO: Do not forget to check the engine version against the meta.xml
+        } catch (e: AsyncFetchException) {}
+
+        return false
+    }
+
     fun updateUpdateButton() {
         var show = false
 
-        if (currentInstanceIndex !== null && fetchedGameRepositories !== null) {
+        if (currentInstanceIndex !== null) {
             val currentInstance = gameInstances[currentInstanceIndex!!]
-            val currentRepository = fetchedGameRepositories!!.get(currentInstance.game.id)
+            val currentGame = currentInstance.game
 
-            // TODO: Finish up GameRepository#getMetadata and use it to asynchronously request the latest version
+            if (isThereKnownToBeAnUpdateForGame(currentGame)) {
+                show = true
+            }
         }
 
         updateButton.visibility = if (show) View.VISIBLE else View.GONE
+    }
+
+    fun requestRemoteGameIfNotAcquiredFor(game: Game) {
+        gameRepositories.asyncGet { gameRepositories, throwable ->
+            if (throwable !== null) {
+                throwable.printStackTrace()
+                return@asyncGet
+            }
+
+            gameRepositories!!
+
+            val remoteGame = gameRepositories.get(game.id)?.game
+
+            if (remoteGame !== null) {
+                remoteGame.asyncGetOnce("requestRemoteGameIfNotAcquiredFor[${game.id}]") { remoteGame, throwable ->
+                    if (throwable !== null) {
+                        throwable.printStackTrace()
+                        return@asyncGetOnce
+                    }
+
+                    remoteGame!!
+                    val currentGameInstance = getCurrentGameInstance()
+
+                    if (currentGameInstance !== null && currentGameInstance.game.id == remoteGame.id) {
+                        updateUpdateButton()
+                    }
+                }
+            }
+        }
+    }
+
+    fun getCurrentGameInstance(): GameInstance? {
+        return currentInstanceIndex?.let { gameInstances[it] }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         constructImmutableUserInterface()
 
-        asyncFetchGameRepositories { result, error ->
+        gameRepositories.asyncGetOnce("onCreate") { result, error ->
             if (error !== null) {
                 error.printStackTrace()
-                return@asyncFetchGameRepositories
+                return@asyncGetOnce
             }
 
-            fetchedGameRepositories = result
+            result!!
+            val currentGameInstance = getCurrentGameInstance()
+
+            if (currentGameInstance !== null) {
+                requestRemoteGameIfNotAcquiredFor(currentGameInstance.game)
+            }
+
             updateUpdateButton()
         }
 
@@ -409,8 +489,13 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                     println("Clicked add instance")
                     showGameInstanceDialog()
                 }
+                R.id.drawer_item_games -> {
+                    println("Clicked games")
+                    showGames()
+                }
                 R.id.drawer_item_settings -> {
                     println("Clicked settings")
+                    showSettings()
                 }
             }
         }

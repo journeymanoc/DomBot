@@ -8,6 +8,7 @@ import com.google.gson.JsonParser
 import org.journeymanoc.obediencetrainer.lua.LuaPersistence
 import java.io.File
 import java.nio.charset.Charset
+import kotlin.math.max
 
 fun prepareRegularFile(file: File): File {
     if (!file.isFile) {
@@ -67,6 +68,9 @@ class CustomEditText(context: Context?) : EditText(context) {
     }
 }
 
+/**
+ * One and only one of the arguments of the method {@param foreground} will be {@code null}.
+ */
 fun<T> async(background: (() -> T), foreground: ((T?, Throwable?) -> Unit)?): Thread {
     return Thread {
         var result: T? = null
@@ -113,4 +117,21 @@ fun parseVersionUniversally(raw: String): IntArray {
     }
 
     return version.toIntArray()
+}
+
+fun compareVersions(a: IntArray, b: IntArray): Int {
+    val maxSize = max(a.size, b.size)
+
+    for (i in 0 until maxSize) {
+        val av = a.getOrNull(i) ?: 0
+        val bv = b.getOrNull(i) ?: 0
+        val comparison = av - bv
+
+        when {
+            comparison < 0 -> return -1
+            comparison > 0 -> return  1
+        }
+    }
+
+    return 0
 }

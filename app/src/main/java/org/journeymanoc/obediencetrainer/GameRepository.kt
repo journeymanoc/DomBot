@@ -1,12 +1,9 @@
 package org.journeymanoc.obediencetrainer
 
 import com.google.gson.JsonParser
-import java.util.*
 
 class GameRepository(val repositoryName: String, val id: String, val name: String) {
-    val gameFetchLock = Any()
-    var gameConsumerQueueConcurrent: Queue<(Game?, Throwable?) -> Unit>? = null
-    var gameConcurrent: Game? = null
+    val game: AsyncFetch<Game> = AsyncFetch("GameRepository#game", ::syncFetchGame)
 
     companion object {
         val REPOSITORY_NAME_PATTERN = Regex("^[\\d\\w\\-._/]+$")
@@ -29,11 +26,7 @@ class GameRepository(val repositoryName: String, val id: String, val name: Strin
         }
     }
 
-    override fun toString(): String {
-        return "GameRepository(repositoryName='$repositoryName', id='$id', name='$name')"
-    }
-
-    @Deprecated("Use the async version.")
+    @Deprecated("Use `GameRepository#game` instead.")
     private fun syncFetchGame(): Game {
         val latestReleaseJson = DataSource.URL("https://api.github.com/repos/$repositoryName/releases/latest")
             .readPathBuffered("")?.let { JsonParser().parse(it) }?.asJsonObject
@@ -52,46 +45,14 @@ class GameRepository(val repositoryName: String, val id: String, val name: Strin
         val game = Game.load(dataSource)
 
         if (!game.parseVersion().contentEquals(parseVersionUniversally(latestReleaseTag))) {
-            throw IllegalStateException("Invalid latest release of game repository `$repositoryName`: Tag name does not match the version in `meta.xml`")
+            throw IllegalStateException("Invalid latest release of game repository `$repositoryName`: Tag name does not match the version in `meta.xml`. Tag: $latestReleaseTag; meta.xml: ${game.version}")
         }
 
         return game
     }
 
-    private fun asyncFetchGame(foreground: (Game?, Throwable?) -> Unit): Thread {
-        @Suppress("DEPRECATION")
-        return async(::syncFetchGame, foreground)
-    }
-
-    fun asyncGetGame(foreground: (Game?, Throwable?) -> Unit) {
-        if (gameConcurrent !== null) {
-            foreground.invoke(gameConcurrent, null)
-            return
-        }
-
-        synchronized (gameFetchLock) {
-            if (gameConcurrent !== null) {
-                foreground.invoke(gameConcurrent, null)
-                return
-            }
-
-            if (gameConsumerQueueConcurrent === null) {
-                gameConsumerQueueConcurrent = ArrayDeque()
-                gameConsumerQueueConcurrent!! += foreground
-
-                asyncFetchGame { game, throwable ->
-                    synchronized (gameFetchLock) {
-                        gameConcurrent = game
-                        for (consumer in gameConsumerQueueConcurrent!!) {
-                            consumer.invoke(game, throwable)
-                        }
-                        gameConsumerQueueConcurrent = null
-                    }
-                }
-            } else {
-                gameConsumerQueueConcurrent!! += foreground
-            }
-        }
+    override fun toString(): String {
+        return "GameRepository(repositoryName='$repositoryName', id='$id', name='$name')"
     }
 }
 
