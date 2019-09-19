@@ -67,6 +67,14 @@ open class GameRepositories(private val list: List<GameRepository>, private val 
         return if (index >= 0 && index < list.size) { list[index] } else { null }
     }
 
+    fun size(): Int {
+        return list.size
+    }
+
+    fun list(): List<GameRepository> {
+        return list
+    }
+
     override fun toString(): String {
         return list.toString()
     }

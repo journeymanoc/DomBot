@@ -16,6 +16,8 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.navigation.NavigationView
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
@@ -58,7 +60,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private lateinit var mainLayout: ConstraintLayout
     private lateinit var navigationView: NavigationView
     private lateinit var settingsView: View
-    private lateinit var gamesView: View
+    private lateinit var gamesView: RecyclerView
     private lateinit var toolbarTitle: TextView
     private lateinit var updateButton: Button
     private lateinit var games: MutableList<Game>
@@ -93,7 +95,10 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         mainLayout = findViewById(R.id.main_layout)
         navigationView = findViewById(R.id.nav_view)
-        gamesView = LinearLayout(applicationContext)
+        gamesView = RecyclerView(applicationContext).apply {
+            layoutManager = LinearLayoutManager(context)
+            adapter = GameAdapter(gameRepositories)
+        }
         settingsView = LinearLayout(applicationContext)
     }
 
@@ -237,6 +242,26 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         currentInstanceIndex = null
         toolbarTitle.setText(R.string.drawer_item_games_title)
         updateUpdateButton()
+
+        gameRepositories.asyncGetOnce("showGames") { gameRepositories, error ->
+            if (error !== null) {
+                error.printStackTrace()
+                return@asyncGetOnce
+            }
+
+            gamesView.adapter!!.notifyDataSetChanged()
+
+            gameRepositories!!.list().forEachIndexed { index, gameRepository ->
+                gameRepository.game.asyncGetOnce("showGames") { gameRepository, error ->
+                    if (error !== null) {
+                        error.printStackTrace()
+                        return@asyncGetOnce
+                    }
+
+                    gamesView.adapter!!.notifyItemChanged(index)
+                }
+            }
+        }
     }
 
     private fun showSettings() {
@@ -413,6 +438,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             }
 
             updateUpdateButton()
+            // TODO: Update GameAdapter
         }
 
         loadGames()
