@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="108dp"
+    android:layout_height="wrap_content"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:paddingRight="18dp">
@@ -21,9 +21,10 @@
 
     <LinearLayout
         android:layout_width="wrap_content"
-        android:layout_height="match_parent"
+        android:layout_height="108dp"
         android:layout_weight="1"
-        android:gravity="center_vertical"
+        android:clipChildren="true"
+        android:gravity="start|center_vertical"
         android:orientation="vertical"
         android:paddingTop="9dp"
         android:paddingBottom="9dp">
@@ -32,6 +33,7 @@
             android:id="@+id/game_name"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:capitalize="words"
             android:text="Game Name"
             android:textColor="@android:color/primary_text_light"
             android:textSize="18sp" />

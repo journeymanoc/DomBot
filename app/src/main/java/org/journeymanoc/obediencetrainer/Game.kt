@@ -1,6 +1,8 @@
 package org.journeymanoc.obediencetrainer
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import org.journeymanoc.obediencetrainer.DataSource
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
@@ -17,6 +19,8 @@ class Game private constructor(builder: Builder) {
     val description: String get
     val changelog: List<String> get
     val pathToMainScript: String get
+    val pathToLogo: String get
+    val logo: AsyncFetch<Bitmap> get
 
     init {
         this.dataSource = builder.dataSource
@@ -28,6 +32,12 @@ class Game private constructor(builder: Builder) {
         this.description = builder.description!!
         this.changelog = builder.changelog
         this.pathToMainScript = builder.pathToMainScript!!
+        this.pathToLogo = builder.pathToLogo!!
+        this.logo = AsyncFetch("Game#logo") {
+            dataSource.readPath(pathToLogo).let { inputStream ->
+                BitmapFactory.decodeStream(inputStream)
+            }
+        }
     }
 
     fun readMainScript(): String? {
@@ -48,6 +58,7 @@ class Game private constructor(builder: Builder) {
         var description: String? = null; get set
         val changelog: MutableList<String> = ArrayList(); get
         var pathToMainScript: String? = null; get set
+        var pathToLogo: String? = null; get set
     }
 
     companion object {
@@ -113,6 +124,7 @@ class Game private constructor(builder: Builder) {
                     "description" -> builder.description = loadString(parser)
                     "changelog" -> builder.changelog += loadStringList(parser, "changelogEntry")
                     "pathToMainScript" -> builder.pathToMainScript = loadString(parser)
+                    "pathToLogo" -> builder.pathToLogo = loadString(parser)
                     else -> throw IllegalStateException("Invalid attribute `${parser.name}`, expected one of: name, version, author, description, changelog")
                 }
             }

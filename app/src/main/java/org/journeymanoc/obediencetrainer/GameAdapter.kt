@@ -2,6 +2,7 @@ package org.journeymanoc.obediencetrainer
 
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
@@ -29,15 +30,16 @@ class GameAdapter(val gameRepositories: AsyncFetch<GameRepositories>): RecyclerV
             holder is GameLoadingViewHolder -> {
                 val gameRepository = gameRepositories.syncGetIfFinished()!!.get(position)!!
 
-                holder.name.text = gameRepository.name
+                holder.name.text = gameRepository.name.trim()
                 holder.id.text = gameRepository.id
             }
             holder is GameLoadedViewHolder -> {
                 val gameRepository = gameRepositories.syncGetIfFinished()!!.get(position)!!
                 val game = gameRepository.game.syncGetIfFinished()!!
 
-                holder.name.text = game.name
-                holder.description.text = game.description
+                holder.logo.setImageBitmap(game.logo.syncGetIfFinished())
+                holder.name.text = game.name.trim()
+                holder.description.text = game.description.trim().replace("\n", "").replace(Regex("\\s+"), " ")
             }
         }
     }
@@ -75,12 +77,11 @@ class GameAdapter(val gameRepositories: AsyncFetch<GameRepositories>): RecyclerV
     class GameLoadingViewHolder(view: View) : ViewHolder(view) {
         val name: TextView = view.findViewById(R.id.game_name)
         val id: TextView = view.findViewById(R.id.game_id)
-
     }
 
     class GameLoadedViewHolder(view: View) : ViewHolder(view) {
+        val logo: ImageView = view.findViewById(R.id.game_logo)
         val name: TextView = view.findViewById(R.id.game_name)
         val description: TextView = view.findViewById(R.id.game_description)
-
     }
 }

@@ -26,11 +26,14 @@ import java.nio.charset.Charset
 
 /**
  * TODO:
- * - Buttons are ugly unless used for dialogs, add menu items
+ * - WIP: Game instance manipulation
+ * - Enforce a maximum size for game logos, so as to avoid game developers adding ridiculously large logos
  * - Custom styling (fonts, colors)
- * - Game instance manipulation
  * - Document the way games are supposed to be developed, streamline it and make it easy to prototype games
  * - Add a way to donate to support the development
+ *
+ * FIXME:
+ * - Menu in the top right corner should be hidden when a game is not selected
  */
 class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
     companion object {
@@ -252,13 +255,22 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             gamesView.adapter!!.notifyDataSetChanged()
 
             gameRepositories!!.list().forEachIndexed { index, gameRepository ->
-                gameRepository.game.asyncGetOnce("showGames") { gameRepository, error ->
+                gameRepository.game.asyncGetOnce("showGames") { game, error ->
                     if (error !== null) {
                         error.printStackTrace()
                         return@asyncGetOnce
                     }
 
                     gamesView.adapter!!.notifyItemChanged(index)
+
+                    game!!.logo.asyncGetOnce("showGames") { logo, error ->
+                        if (error !== null) {
+                            error.printStackTrace()
+                            return@asyncGetOnce
+                        }
+
+                        gamesView.adapter!!.notifyItemChanged(index)
+                    }
                 }
             }
         }

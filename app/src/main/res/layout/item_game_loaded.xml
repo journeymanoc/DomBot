@@ -3,17 +3,18 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="108dp"
+    android:layout_height="wrap_content"
+    android:clickable="true"
+    android:focusable="true"
     android:orientation="horizontal"
     android:paddingRight="18dp">
 
     <ImageView
-        android:id="@+id/imageView2"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:layout_weight="0"
+        android:id="@+id/game_logo"
+        android:layout_width="108dp"
+        android:layout_height="108dp"
         android:adjustViewBounds="true"
-        android:scaleType="centerInside"
+        android:scaleType="centerCrop"
         tools:srcCompat="@tools:sample/avatars" />
 
     <Space
@@ -22,9 +23,10 @@
 
     <LinearLayout
         android:layout_width="wrap_content"
-        android:layout_height="match_parent"
+        android:layout_height="108dp"
         android:layout_weight="1"
-        android:gravity="center_vertical"
+        android:clipChildren="true"
+        android:gravity="start|center_vertical"
         android:orientation="vertical"
         android:paddingTop="9dp"
         android:paddingBottom="9dp">
@@ -33,6 +35,7 @@
             android:id="@+id/game_name"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:capitalize="words"
             android:text="Game Name"
             android:textColor="@android:color/primary_text_light"
             android:textSize="18sp" />
@@ -45,26 +48,8 @@
             android:id="@+id/game_description"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Game Description" />
-    </LinearLayout>
-
-    <Space
-        android:layout_width="18dp"
-        android:layout_height="match_parent" />
-
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:layout_weight="0"
-        android:gravity="center_vertical"
-        android:orientation="vertical">
-
-        <Button
-            android:id="@+id/button"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="0"
-            android:text="Button" />
+            android:ellipsize="end"
+            android:text="Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description Game Description " />
     </LinearLayout>
 
 </LinearLayout>
