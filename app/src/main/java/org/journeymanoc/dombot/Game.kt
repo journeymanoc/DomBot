@@ -47,6 +47,14 @@ class Game private constructor(builder: Builder) {
         return parseVersionUniversally(version)
     }
 
+    fun nameFormatted(): String {
+        return simplifyString(name)
+    }
+
+    fun descriptionFormatted(): String {
+        return simplifyString(description)
+    }
+
     private class Builder(dataSource: DataSource) {
         val dataSource: DataSource = dataSource; get
         var engineVersion: Int? = null; get set
@@ -62,6 +70,10 @@ class Game private constructor(builder: Builder) {
 
     companion object {
         const val DIRECTORY_GAMES = "games"
+
+        private fun simplifyString(input: String): String {
+            return input.trim().replace("\n", "").replace(Regex("\\s+"), " ")
+        }
 
         private fun parseDeeper(parser: XmlPullParser, acc: () -> Unit) {
             val minDepth = parser.depth

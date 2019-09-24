@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:clickable="true"
-    android:focusable="true"
+    android:focusable="auto"
     android:orientation="horizontal"
     android:paddingRight="18dp">
 
@@ -35,7 +35,6 @@
             android:id="@+id/game_name"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:capitalize="words"
             android:text="Game Name"
             android:textColor="@android:color/primary_text_light"
             android:textSize="18sp" />

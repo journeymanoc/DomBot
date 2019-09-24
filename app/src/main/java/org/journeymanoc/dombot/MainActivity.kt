@@ -26,11 +26,13 @@ import java.nio.charset.Charset
 
 /**
  * TODO:
- * - WIP: Game instance manipulation
+ * - WIP: Game instance manipulation (consider adding an activity to show download progress and "restart" the main activity once done)
  * - Enforce a maximum size for game logos, so as to avoid game developers adding ridiculously large logos
  * - Custom styling (fonts, colors)
  * - Document the way games are supposed to be developed, streamline it and make it easy to prototype games
+ * - Create a way for users to provide feedback (discord community?)
  * - Add a way to donate to support the development
+ * - Publish
  *
  * FIXME:
  * - Menu in the top right corner should be hidden when a game is not selected
@@ -60,13 +62,13 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         instance = this
     }
 
-    private lateinit var mainLayout: ConstraintLayout
-    private lateinit var navigationView: NavigationView
-    private lateinit var settingsView: View
-    private lateinit var gamesView: RecyclerView
-    private lateinit var toolbarTitle: TextView
-    private lateinit var updateButton: Button
-    private lateinit var games: MutableList<Game>
+    lateinit var mainLayout: ConstraintLayout private set
+    lateinit var navigationView: NavigationView private set
+    lateinit var settingsView: View private set
+    lateinit var gamesView: RecyclerView private set
+    lateinit var toolbarTitle: TextView private set
+    lateinit var updateButton: Button private set
+    lateinit var games: MutableList<Game> private set
     private var gameInstances: MutableList<GameInstance> = mutableListOf()
     private var currentInstanceIndex: Int? = null
     private var gameRepositories: AsyncFetch<GameRepositories> = AsyncFetch("MainActivity#gameRepositories", ::syncFetchGameRepositories)
@@ -101,6 +103,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         gamesView = RecyclerView(applicationContext).apply {
             layoutManager = LinearLayoutManager(context)
             adapter = GameAdapter(gameRepositories)
+            layoutParams = RecyclerView.LayoutParams(RecyclerView.LayoutParams.MATCH_PARENT, RecyclerView.LayoutParams.MATCH_PARENT)
         }
         settingsView = LinearLayout(applicationContext)
     }
