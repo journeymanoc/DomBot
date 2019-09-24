@@ -1,4 +1,4 @@
-package org.journeymanoc.obediencetrainer
+package org.journeymanoc.dombot
 
 import java.util.*
 import kotlin.collections.HashSet

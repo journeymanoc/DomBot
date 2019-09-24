@@ -1,4 +1,4 @@
-package org.journeymanoc.obediencetrainer
+package org.journeymanoc.dombot
 
 import androidx.test.InstrumentationRegistry
 import androidx.test.runner.AndroidJUnit4
@@ -19,6 +19,6 @@ class ExampleInstrumentedTest {
     fun useAppContext() {
         // Context of the app under test.
         val appContext = InstrumentationRegistry.getTargetContext()
-        assertEquals("org.journeymanoc.obediencetrainer", appContext.packageName)
+        assertEquals("org.journeymanoc.dombot", appContext.packageName)
     }
 }

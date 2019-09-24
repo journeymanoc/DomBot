@@ -1,4 +1,4 @@
-package org.journeymanoc.obediencetrainer
+package org.journeymanoc.dombot
 
 import android.graphics.BitmapFactory
 import android.graphics.Color

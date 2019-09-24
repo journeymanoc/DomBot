@@ -1,4 +1,4 @@
-package org.journeymanoc.obediencetrainer.lua
+package org.journeymanoc.dombot.lua
 
 import com.google.gson.*
 import org.luaj.vm2.LuaTable

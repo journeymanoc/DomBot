@@ -1,4 +1,4 @@
-package org.journeymanoc.obediencetrainer
+package org.journeymanoc.dombot
 
 import android.view.View
 import android.view.ViewGroup

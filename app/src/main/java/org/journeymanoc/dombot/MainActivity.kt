@@ -1,4 +1,4 @@
-package org.journeymanoc.obediencetrainer
+package org.journeymanoc.dombot
 
 import android.os.Bundle
 import android.view.Menu
@@ -303,13 +303,10 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
     @Deprecated("Use the async version.")
     private fun syncFetchGameRepositories(): GameRepositories {
-        var repositoryName: String? = "journeymanoc/ObedienceTrainerGames"
+        var repositoryName: String? = "journeymanoc/DomBotGames"
         var root: JsonObject
 
         do {
-            // Use Raw file retrieval for single file downloads:
-            // curl https://raw.githubusercontent.com/journeymanoc/ObedienceTrainerGames/master/games.json
-            // Use JGit for cloning repos.
             root = URL("https://raw.githubusercontent.com/$repositoryName/master/games.json")
                 .openConnection().getInputStream().reader(Charset.forName("UTF-8")).use {
                     JsonParser().parse(it)

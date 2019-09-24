@@ -1,9 +1,8 @@
-package org.journeymanoc.obediencetrainer
+package org.journeymanoc.dombot
 
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import org.journeymanoc.obediencetrainer.DataSource
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.BufferedReader

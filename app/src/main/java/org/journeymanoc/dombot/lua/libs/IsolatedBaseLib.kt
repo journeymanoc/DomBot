@@ -1,6 +1,6 @@
-package org.journeymanoc.obediencetrainer.lua.libs
+package org.journeymanoc.dombot.lua.libs
 
-import org.journeymanoc.obediencetrainer.DataSource
+import org.journeymanoc.dombot.DataSource
 import org.luaj.vm2.*
 import org.luaj.vm2.lib.LibFunction
 import org.luaj.vm2.lib.TwoArgFunction

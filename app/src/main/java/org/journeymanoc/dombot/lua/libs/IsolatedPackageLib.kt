@@ -1,4 +1,4 @@
-package org.journeymanoc.obediencetrainer.lua.libs
+package org.journeymanoc.dombot.lua.libs
 
 import org.luaj.vm2.*
 import org.luaj.vm2.lib.OneArgFunction

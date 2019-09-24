@@ -1,4 +1,4 @@
-package org.journeymanoc.obediencetrainer
+package org.journeymanoc.dombot
 
 import android.content.res.AssetManager
 import org.luaj.vm2.lib.ResourceFinder

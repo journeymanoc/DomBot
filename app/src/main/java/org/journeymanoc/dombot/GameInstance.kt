@@ -1,4 +1,4 @@
-package org.journeymanoc.obediencetrainer
+package org.journeymanoc.dombot
 
 import android.content.Context
 import android.os.Handler
@@ -8,10 +8,10 @@ import android.os.SystemClock
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.gson.JsonArray
-import org.journeymanoc.obediencetrainer.lua.LuaPersistence
-import org.journeymanoc.obediencetrainer.lua.libs.InternalLib
-import org.journeymanoc.obediencetrainer.lua.libs.IsolatedBaseLib
-import org.journeymanoc.obediencetrainer.lua.libs.IsolatedPackageLib
+import org.journeymanoc.dombot.lua.LuaPersistence
+import org.journeymanoc.dombot.lua.libs.InternalLib
+import org.journeymanoc.dombot.lua.libs.IsolatedBaseLib
+import org.journeymanoc.dombot.lua.libs.IsolatedPackageLib
 import org.luaj.vm2.*
 import org.luaj.vm2.compiler.LuaC
 import org.luaj.vm2.lib.*

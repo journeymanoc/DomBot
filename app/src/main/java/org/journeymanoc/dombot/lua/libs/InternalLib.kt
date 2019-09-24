@@ -1,8 +1,8 @@
-package org.journeymanoc.obediencetrainer.lua.libs
+package org.journeymanoc.dombot.lua.libs
 
-import org.journeymanoc.obediencetrainer.ElementAdapter
-import org.journeymanoc.obediencetrainer.GameInstance
-import org.journeymanoc.obediencetrainer.lua.LuaPersistence
+import org.journeymanoc.dombot.ElementAdapter
+import org.journeymanoc.dombot.GameInstance
+import org.journeymanoc.dombot.lua.LuaPersistence
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
 import org.luaj.vm2.Varargs

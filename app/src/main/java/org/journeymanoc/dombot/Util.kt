@@ -1,11 +1,11 @@
-package org.journeymanoc.obediencetrainer
+package org.journeymanoc.dombot
 
 import android.content.Context
 import android.text.TextWatcher
 import android.widget.EditText
 import com.google.gson.JsonElement
 import com.google.gson.JsonParser
-import org.journeymanoc.obediencetrainer.lua.LuaPersistence
+import org.journeymanoc.dombot.lua.LuaPersistence
 import java.io.File
 import java.nio.charset.Charset
 import kotlin.math.max

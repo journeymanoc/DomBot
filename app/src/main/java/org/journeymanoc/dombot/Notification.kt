@@ -1,15 +1,10 @@
-package org.journeymanoc.obediencetrainer
+package org.journeymanoc.dombot
 
 import com.google.gson.JsonElement
-import com.google.gson.JsonNull
 import com.google.gson.JsonObject
-import org.journeymanoc.obediencetrainer.lua.LuaPersistence
-import org.journeymanoc.obediencetrainer.lua.libs.InternalLib
+import org.journeymanoc.dombot.lua.LuaPersistence
+import org.journeymanoc.dombot.lua.libs.InternalLib
 import org.luaj.vm2.LuaValue
-import java.io.InputStreamReader
-import java.io.OutputStreamWriter
-import java.io.PipedInputStream
-import java.io.PipedOutputStream
 import java.util.*
 
 class Notification(val id: String?, val instant: Long, data: LuaValue) : Comparable<Notification> {

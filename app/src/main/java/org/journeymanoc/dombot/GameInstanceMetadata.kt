@@ -1,10 +1,8 @@
-package org.journeymanoc.obediencetrainer
+package org.journeymanoc.dombot
 
 import android.content.Context
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import java.io.File
-import java.nio.charset.Charset
 
 class GameInstanceMetadata(val file: File, val gameId: String, val instanceId: String, var instanceName: String) {
     companion object {
