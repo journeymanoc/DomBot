@@ -1,5 +1,6 @@
 package org.journeymanoc.dombot
 
+import android.content.Context
 import android.content.res.AssetManager
 import org.luaj.vm2.lib.ResourceFinder
 import java.io.*
@@ -49,6 +50,10 @@ interface DataSource : ResourceFinder {
             return result
         }
 
+        /**
+         * Converts a path with special segments such as `.` and `..` to a relative path without those segments.
+         * Ensures that the path does not change its root (by using too many `..` segments), in that case, `null` is returned.
+         */
         fun resolvePath(path: String): String? {
             val segments = splitPath(path)
             var index = 0
@@ -102,6 +107,10 @@ interface DataSource : ResourceFinder {
     fun paths(relativePath: String): List<String>
     fun containsPath(relativePath: String): Boolean
     fun readPath(relativePath: String): InputStream?
+    fun canWrite(): Boolean
+    fun write(relativePath: String): OutputStream?
+    fun delete(relativePath: String): Boolean
+    fun subsource(relativePath: String): DataSource?
 
     fun readPathBuffered(relativePath: String): BufferedReader? {
         val inputStream = readPath(relativePath)
@@ -123,6 +132,76 @@ interface DataSource : ResourceFinder {
 
     fun union(vararg other: DataSource): DataSource {
         return Union(arrayOf(this, *other))
+    }
+
+    class File(private val baseFile: java.io.File) : DataSource {
+        companion object {
+            fun relativeToAppDir(context: Context, path: String): File {
+                return File(context.filesDir.resolve(path))
+            }
+        }
+
+        private fun resolveFile(relativePath: String): java.io.File? {
+            val resolved = resolvePath(relativePath)
+
+            return if (resolved === null) {
+                null
+            } else {
+                baseFile.resolve(relativePath)
+            }
+        }
+
+        override fun paths(relativePath: String): List<String> {
+            return resolveFile(relativePath)?.let { dir ->
+                val dirAbsolutePath = dir.absolutePath
+
+                dir.listFiles()?.map {
+                    it.absolutePath.substring(dirAbsolutePath.length)
+                }
+            } ?: emptyList()
+        }
+
+        override fun containsPath(relativePath: String): Boolean {
+            return resolveFile(relativePath)?.exists() ?: false
+        }
+
+        override fun readPath(relativePath: String): InputStream? {
+            return resolveFile(relativePath)?.let { file ->
+                try {
+                    file.inputStream()
+                } catch (e: FileNotFoundException) {
+                    null
+                } catch (e: SecurityException) {
+                    null
+                }
+            }
+        }
+
+        override fun canWrite(): Boolean {
+            return true
+        }
+
+        override fun write(relativePath: String): OutputStream? {
+            return resolveFile(relativePath)?.let { file ->
+                try {
+                    file.outputStream()
+                } catch (e: FileNotFoundException) {
+                    null
+                } catch (e: SecurityException) {
+                    null
+                }
+            }
+        }
+
+        override fun delete(relativePath: String): Boolean {
+            return resolveFile(relativePath)?.deleteRecursively() ?: false
+        }
+
+        override fun subsource(relativePath: String): DataSource? {
+            return resolveFile(relativePath)?.let {
+                File(it)
+            }
+        }
     }
 
     class Asset(assetManager: AssetManager, basePathRaw: String) : DataSource {
@@ -170,6 +249,24 @@ interface DataSource : ResourceFinder {
                 } catch (e: FileNotFoundException) {
                     null
                 }
+            }
+        }
+
+        override fun canWrite(): Boolean {
+            return false
+        }
+
+        override fun write(relativePath: String): OutputStream? {
+            return null
+        }
+
+        override fun delete(relativePath: String): Boolean {
+            return false
+        }
+
+        override fun subsource(relativePath: String): DataSource? {
+            return absolutePathOf(relativePath)?.let { absolutePath ->
+                Asset(assetManager, absolutePath)
             }
         }
     }
@@ -220,6 +317,24 @@ interface DataSource : ResourceFinder {
                 }
             }
         }
+
+        override fun canWrite(): Boolean {
+            return false
+        }
+
+        override fun write(relativePath: String): OutputStream? {
+            return null
+        }
+
+        override fun delete(relativePath: String): Boolean {
+            return false
+        }
+
+        override fun subsource(relativePath: String): DataSource? {
+            return absolutePathOf(relativePath)?.let { absolutePath ->
+                URL(absolutePath.toExternalForm())
+            }
+        }
     }
 
     class Union(private val sources: Array<DataSource>) : DataSource {
@@ -246,6 +361,48 @@ interface DataSource : ResourceFinder {
             }
 
             return null
+        }
+
+        override fun canWrite(): Boolean {
+            return sources.all { it.canWrite() }
+        }
+
+        override fun write(relativePath: String): OutputStream? {
+            for (source in sources) {
+                val stream = source.write(relativePath)
+
+                if (stream !== null) {
+                    return stream
+                }
+            }
+
+            return null
+        }
+
+        override fun delete(relativePath: String): Boolean {
+            if (!canWrite()) {
+                return false
+            }
+
+            var deleted = false
+
+            for (source in sources) {
+                deleted = source.delete(relativePath) or deleted
+            }
+
+            return deleted
+        }
+
+        override fun subsource(relativePath: String): DataSource? {
+            val newSources = sources.mapNotNull {
+                it.subsource(relativePath)
+            }
+
+            return if (newSources.isEmpty()) {
+                null
+            } else {
+                Union(newSources.toTypedArray())
+            }
         }
     }
 }

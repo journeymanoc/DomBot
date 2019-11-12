@@ -194,6 +194,7 @@ class Game private constructor(builder: Builder) {
             return load(DataSource.Asset(context.assets, directoryPath))
         }
 
+        @Deprecated("Asset games should not be used, because they cannot be uninstalled.")
         fun loadBuiltinGames(context: Context): List<Game> {
             val gamePaths = context.assets.list(DIRECTORY_GAMES)!!
 
@@ -201,6 +202,20 @@ class Game private constructor(builder: Builder) {
                 "$DIRECTORY_GAMES/$it"
             }.map {
                 loadFromAsset(context, it)
+            }
+        }
+
+        fun getInstalledGamesDataSource(context: Context): DataSource {
+            return DataSource.File.relativeToAppDir(context, DIRECTORY_GAMES)
+        }
+
+        fun loadInstalledGames(context: Context): List<Game> {
+            val installedGamesDataSource = getInstalledGamesDataSource(context)
+            val gamePaths = installedGamesDataSource.paths(".")
+
+            return gamePaths.map {
+                val subsource = installedGamesDataSource.subsource(it)!!
+                load(subsource)
             }
         }
     }

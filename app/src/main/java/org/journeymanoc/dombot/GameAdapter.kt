@@ -20,7 +20,8 @@ class GameAdapter(val gameRepositories: AsyncFetch<GameRepositories>): RecyclerV
         val textName: TextView = view.findViewById(R.id.game_name)
         val textId: TextView = view.findViewById(R.id.game_id)
         val textDescription: TextView = view.findViewById(R.id.game_description)
-        val installed = MainActivity.instance.games.any { it.id == game.id }
+        val installedGame = MainActivity.instance.games.find { it.id == game.id }
+        val installed = installedGame !== null
         val mainActionText = if (installed) "Uninstall" else "Install"
 
         imageLogo.setImageBitmap(game.logo.syncGetIfFinished())
@@ -38,6 +39,9 @@ class GameAdapter(val gameRepositories: AsyncFetch<GameRepositories>): RecyclerV
             setOnDismissListener {
                 if (!cancelled.value) {
                     // PERFORM CHANGES HERE
+                    if (installed) {
+                        installedGame!!.dataSource
+                    }
                 }
             }
         }

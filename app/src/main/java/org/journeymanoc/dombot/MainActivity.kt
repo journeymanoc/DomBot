@@ -109,7 +109,10 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     private fun loadGames(): List<Game> {
-        games = Game.loadBuiltinGames(applicationContext).toMutableList()
+        val games = mutableListOf<Game>()
+        //games += Game.loadBuiltinGames(applicationContext)
+        games += Game.loadInstalledGames(applicationContext)
+        this.games = games
         return games
     }
 
